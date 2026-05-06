@@ -61,7 +61,7 @@ router.get("/users", adminAuth, async (_req, res) => {
 });
 
 router.delete("/users/:id", adminAuth, async (req, res) => {
-  const { id } = req.params;
+  const id = String(req.params.id);
   try {
     const supabase = getSupabaseAdmin();
     const { error } = await supabase.auth.admin.deleteUser(id);
