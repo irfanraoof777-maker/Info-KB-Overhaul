@@ -16,15 +16,25 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-    if (authError) {
-      setError(authError.message);
-    } else {
-      navigate("/dashboard");
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (authError) {
+        setError(authError.message);
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(
+        msg.toLowerCase().includes("failed to fetch")
+          ? "Could not reach Supabase. Check that your SUPABASE_URL is correct and the project is active."
+          : msg,
+      );
+    } finally {
+      setLoading(false);
     }
   };
 

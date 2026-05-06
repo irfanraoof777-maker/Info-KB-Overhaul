@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-let supabaseUrl = (import.meta.env.SUPABASE_URL as string) ?? "";
-const supabaseKey = (import.meta.env.SUPABASE_PUBLISHABLE_KEY as string) ?? "";
+// .trim() strips any accidental whitespace / newlines from the secret value
+let supabaseUrl = ((import.meta.env.SUPABASE_URL as string) ?? "").trim();
+const supabaseKey = ((import.meta.env.SUPABASE_PUBLISHABLE_KEY as string) ?? "").trim();
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
@@ -14,7 +15,7 @@ if (!supabaseUrl.startsWith("http://") && !supabaseUrl.startsWith("https://")) {
   supabaseUrl = `https://${supabaseUrl}`;
 }
 
-// Strip trailing slash so Supabase SDK doesn't get confused
+// Strip trailing slash
 supabaseUrl = supabaseUrl.replace(/\/$/, "");
 
 export const supabase = createClient(supabaseUrl, supabaseKey);

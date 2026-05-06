@@ -28,18 +28,27 @@ export default function Signup() {
     }
 
     setLoading(true);
-    const { data, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    setLoading(false);
-
-    if (authError) {
-      setError(authError.message);
-    } else if (data.session) {
-      navigate("/dashboard");
-    } else {
-      setSuccess(true);
+    try {
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (authError) {
+        setError(authError.message);
+      } else if (data.session) {
+        navigate("/dashboard");
+      } else {
+        setSuccess(true);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(
+        msg.toLowerCase().includes("failed to fetch")
+          ? "Could not reach Supabase. Check that your SUPABASE_URL is correct and the project is active."
+          : msg,
+      );
+    } finally {
+      setLoading(false);
     }
   };
 

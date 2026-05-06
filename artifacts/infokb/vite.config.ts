@@ -28,7 +28,14 @@ if (!basePath) {
 
 export default defineConfig({
   base: basePath,
-  envPrefix: ["VITE_", "SUPABASE_"],
+  define: {
+    "import.meta.env.SUPABASE_URL": JSON.stringify(
+      (process.env.SUPABASE_URL ?? "").trim(),
+    ),
+    "import.meta.env.SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
+      (process.env.SUPABASE_PUBLISHABLE_KEY ?? "").trim(),
+    ),
+  },
   plugins: [
     react(),
     tailwindcss(),
