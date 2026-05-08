@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Phone, LogIn, UserPlus, LayoutDashboard, LogOut } from "lucide-react";
+import { Menu, X, Phone, LogIn, UserPlus, LayoutDashboard, LogOut, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
@@ -17,6 +18,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [location, navigate] = useLocation();
   const { user, loading, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -36,11 +38,24 @@ export default function Navbar() {
     navigate("/");
   };
 
+  // Nav link classes — active on transparent hero should be white, not blue
+  function navLinkClass(active: boolean) {
+    if (active && solidBg) return "text-primary bg-primary/8";
+    if (active && !solidBg) return "text-white font-semibold bg-white/10";
+    if (!active && solidBg) return "text-foreground/70 hover:text-foreground hover:bg-muted";
+    return "text-white/90 hover:text-white hover:bg-white/10";
+  }
+
+  // Theme toggle button classes
+  const themeToggleClass = solidBg
+    ? "text-foreground/70 hover:text-foreground hover:bg-muted"
+    : "text-white/90 hover:text-white hover:bg-white/10";
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         solidBg
-          ? "bg-white/95 backdrop-blur-md shadow-md border-b border-border"
+          ? "bg-white/95 dark:bg-card/95 backdrop-blur-md shadow-md border-b border-border"
           : "bg-transparent"
       }`}
     >
@@ -71,13 +86,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                    active
-                      ? "text-primary bg-primary/8"
-                      : solidBg
-                      ? "text-foreground/70 hover:text-foreground hover:bg-muted"
-                      : "text-white/90 hover:text-white hover:bg-white/10"
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${navLinkClass(active)}`}
                 >
                   {link.label}
                 </Link>
@@ -97,6 +106,19 @@ export default function Navbar() {
               <Phone className="h-4 w-4" />
               +91-9652429090
             </a>
+
+            {/* Dark / light mode toggle */}
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle dark mode"
+              className={`p-2 rounded-lg transition-colors ${themeToggleClass}`}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
 
             {!loading && (
               <>
@@ -167,7 +189,7 @@ export default function Navbar() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-white border-b border-border overflow-hidden"
+            className="md:hidden bg-white dark:bg-card border-b border-border overflow-hidden"
           >
             <div className="px-4 py-4 flex flex-col gap-1">
               {navLinks.map((link) => {
@@ -228,6 +250,22 @@ export default function Navbar() {
                   )}
                 </div>
               )}
+
+              {/* Dark mode toggle in mobile menu */}
+              <button
+                onClick={toggleTheme}
+                className="mt-1 flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-muted w-full text-left"
+              >
+                {theme === "dark" ? (
+                  <>
+                    <Sun className="h-4 w-4" /> Light Mode
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-4 w-4" /> Dark Mode
+                  </>
+                )}
+              </button>
 
               <a
                 href="tel:+919652429090"

@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CheckCircle } from "lucide-react";
 
 export default function Login() {
   const [, navigate] = useLocation();
+  const search = useSearch();
+  const flashMessage = new URLSearchParams(search).get("message");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -39,14 +43,21 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 pt-20">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 border border-border">
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 dark:bg-background px-4 pt-20">
+      <div className="w-full max-w-md bg-white dark:bg-card rounded-2xl shadow-lg p-8 border border-border">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Sign in to your InfoKB account
           </p>
         </div>
+
+        {flashMessage && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg px-3 py-2 border border-green-200 dark:border-green-800">
+            <CheckCircle className="h-4 w-4 shrink-0" />
+            {flashMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -63,7 +74,15 @@ export default function Login() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"
