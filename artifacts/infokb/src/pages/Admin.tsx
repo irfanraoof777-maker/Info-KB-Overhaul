@@ -31,6 +31,8 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -798,6 +800,7 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
 export default function Admin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -819,22 +822,22 @@ export default function Admin() {
         body: JSON.stringify({ username, password }),
       });
       let data: { ok?: boolean; error?: string } = {};
-      try { data = await res.json(); } catch { /* ignore parse errors */ }
+      try { data = await res.json(); } catch { /* ignore non-JSON */ }
       if (res.status === 401) {
-        setAuthError(data.error ?? "Invalid admin credentials.");
+        setAuthError("Incorrect username or password.");
         return;
       }
       if (!res.ok) {
-        setAuthError(data.error ?? "Server error. Make sure the API server is running.");
+        setAuthError(data.error ?? "Server error. Please try again.");
         return;
       }
       if (data.ok) {
         setAuthed(true);
       } else {
-        setAuthError("Invalid admin credentials.");
+        setAuthError("Incorrect username or password.");
       }
     } catch {
-      setAuthError("Could not reach the server. Check that the API server is running.");
+      setAuthError("Could not reach the server. Please try again.");
     } finally {
       setAuthLoading(false);
     }
@@ -843,9 +846,9 @@ export default function Admin() {
   // ── Login Screen ────────────────────────────────────────────
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 dark:bg-background px-4 pt-20">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 dark:bg-background px-4">
         <div className="w-full max-w-sm bg-white dark:bg-card rounded-2xl shadow-lg p-8 border border-border">
-          <div className="mb-6 text-center">
+          <div className="mb-7 text-center">
             <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-3">
               <span className="text-2xl">🔐</span>
             </div>
@@ -853,39 +856,51 @@ export default function Admin() {
             <p className="text-sm text-muted-foreground mt-1">Enter your credentials to continue</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-1.5">
               <Label htmlFor="admin-user">Username</Label>
               <Input
                 id="admin-user"
                 ref={usernameRef}
                 type="text"
-                placeholder="admin"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoComplete="username"
-                className="text-gray-900 bg-white placeholder:text-gray-400"
+                className="text-foreground bg-background"
               />
             </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="admin-pass">Password</Label>
-              <Input
-                id="admin-pass"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="text-gray-900 bg-white placeholder:text-gray-400"
-              />
+              <div className="relative">
+                <Input
+                  id="admin-pass"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="text-foreground bg-background pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
+
             {authError && (
               <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
                 {authError}
               </p>
             )}
+
             <Button type="submit" className="w-full" disabled={authLoading}>
               {authLoading ? "Verifying…" : "Enter Admin Panel"}
             </Button>
@@ -927,7 +942,7 @@ export default function Admin() {
               ))}
             </div>
             <button
-              onClick={() => setAuthed(false)}
+              onClick={() => { setAuthed(false); setUsername(""); setPassword(""); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <LogOut className="h-4 w-4" />
