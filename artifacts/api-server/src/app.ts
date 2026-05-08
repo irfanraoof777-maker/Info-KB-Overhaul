@@ -29,6 +29,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Mount at /api (direct access: localhost:8080/api/admin/...)
+// Mount at /   (Replit proxy strips the /api prefix before forwarding)
 app.use("/api", router);
+app.use("/", router);
 
 export default app;
