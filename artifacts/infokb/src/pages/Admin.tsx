@@ -814,17 +814,25 @@ export default function Admin() {
     setAuthLoading(true);
     try {
       const res = await fetch("/api/admin/verify", {
-        headers: { Authorization: makeBasicAuth(username, password) },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
+      let data: { ok?: boolean; error?: string } = {};
+      try { data = await res.json(); } catch { /* ignore parse errors */ }
       if (res.status === 401) {
-        setAuthError("Invalid admin credentials.");
+        setAuthError(data.error ?? "Invalid admin credentials.");
         return;
       }
       if (!res.ok) {
-        setAuthError("Server error. Make sure the API server is running.");
+        setAuthError(data.error ?? "Server error. Make sure the API server is running.");
         return;
       }
-      setAuthed(true);
+      if (data.ok) {
+        setAuthed(true);
+      } else {
+        setAuthError("Invalid admin credentials.");
+      }
     } catch {
       setAuthError("Could not reach the server. Check that the API server is running.");
     } finally {

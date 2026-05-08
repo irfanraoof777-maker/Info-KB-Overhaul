@@ -77,7 +77,23 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
   UNIQUE(user_id, course_id)
 );`;
 
-// ── Verify credentials (lightweight — no Supabase call) ──────
+// ── Verify credentials (POST with JSON body — no Supabase call) ──────
+router.post("/verify", (req: Request, res: Response) => {
+  const expectedUser = process.env["ADMIN_USERNAME"];
+  const expectedPass = process.env["ADMIN_PASSWORD"];
+  if (!expectedUser || !expectedPass) {
+    res.status(500).json({ error: "Admin credentials not configured on server." });
+    return;
+  }
+  const { username, password } = req.body as { username?: string; password?: string };
+  if (username === expectedUser && password === expectedPass) {
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ error: "Invalid admin credentials." });
+  }
+});
+
+// Keep GET for direct server-side testing via curl
 router.get("/verify", adminAuth, (_req, res) => {
   res.json({ ok: true });
 });
