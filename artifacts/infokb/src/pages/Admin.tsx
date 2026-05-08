@@ -813,7 +813,7 @@ export default function Admin() {
     setAuthError("");
     setAuthLoading(true);
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch("/api/admin/verify", {
         headers: { Authorization: makeBasicAuth(username, password) },
       });
       if (res.status === 401) {
@@ -857,6 +857,7 @@ export default function Admin() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoComplete="username"
+                className="text-gray-900 bg-white placeholder:text-gray-400"
               />
             </div>
             <div className="space-y-1.5">
@@ -869,6 +870,7 @@ export default function Admin() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
+                className="text-gray-900 bg-white placeholder:text-gray-400"
               />
             </div>
             {authError && (

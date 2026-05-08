@@ -77,6 +77,11 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
   UNIQUE(user_id, course_id)
 );`;
 
+// ── Verify credentials (lightweight — no Supabase call) ──────
+router.get("/verify", adminAuth, (_req, res) => {
+  res.json({ ok: true });
+});
+
 // ── DB status ────────────────────────────────────────────────
 router.get("/db-status", adminAuth, async (_req, res) => {
   try {
