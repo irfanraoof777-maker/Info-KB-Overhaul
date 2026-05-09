@@ -505,22 +505,29 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
           </div>
 
           {/* ── Media uploads ── */}
-          <div className="space-y-4 border border-border rounded-xl p-4 bg-muted/20">
+          <div className="space-y-5 border border-border rounded-xl p-5 bg-muted/20">
             <p className="text-sm font-semibold text-foreground">Media & Files</p>
 
-            <UploadButton
-              label="Thumbnail Image"
-              accept="image/*"
-              currentUrl={form.thumbnail_url}
-              onUploaded={(url) => set("thumbnail_url", url)}
-              auth={auth}
-            />
-            {form.thumbnail_url && (
-              <img src={form.thumbnail_url} alt="Thumbnail preview"
-                className="h-24 w-40 rounded-lg object-cover border border-border"
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />
-            )}
+            {/* Thumbnail */}
+            <div className="space-y-2">
+              <UploadButton
+                label="Thumbnail Image"
+                accept="image/*"
+                currentUrl={form.thumbnail_url}
+                onUploaded={(url) => set("thumbnail_url", url)}
+                auth={auth}
+              />
+              {form.thumbnail_url && (
+                <img
+                  src={form.thumbnail_url}
+                  alt="Thumbnail preview"
+                  className="h-24 w-40 rounded-lg object-cover border border-border mt-1"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              )}
+            </div>
 
+            {/* Trailer Video */}
             <UploadButton
               label="Trailer Video"
               accept="video/*"
@@ -528,11 +535,8 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
               onUploaded={(url) => set("trailer_url", url)}
               auth={auth}
             />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Or paste a YouTube/video URL</Label>
-              <Input value={form.trailer_url} onChange={(e) => set("trailer_url", e.target.value)} placeholder="https://youtube.com/..." className="text-sm" />
-            </div>
 
+            {/* Full Course Video */}
             <UploadButton
               label="Full Course Video"
               accept="video/*"
@@ -540,10 +544,6 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
               onUploaded={(url) => set("full_video_url", url)}
               auth={auth}
             />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Or paste a video URL</Label>
-              <Input value={form.full_video_url} onChange={(e) => set("full_video_url", e.target.value)} placeholder="https://..." className="text-sm" />
-            </div>
           </div>
 
           {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
