@@ -3,7 +3,7 @@ import { Search, X, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CourseCard from "@/components/CourseCard";
 import { courses as hardcodedCourses, CATEGORIES, type Course, type Category } from "@/data/courses";
-import { supabase } from "@/lib/supabase";
+import { supabase, SUPABASE_URL_VALUE, SUPABASE_KEY_VALUE } from "@/lib/supabase";
 import { useLocation } from "wouter";
 
 // ── DB row shape from Supabase ────────────────────────────────────────────────
@@ -75,7 +75,6 @@ export default function Courses() {
   const [courses, setCourses] = useState<Course[]>(hardcodedCourses);
   const [categories, setCategories] = useState<Category[]>(CATEGORIES);
   const [loading, setLoading] = useState(true);
-  const [usingDb, setUsingDb] = useState(false);
 
   useEffect(() => {
     document.title = "Courses | InfoKB";
@@ -83,28 +82,50 @@ export default function Courses() {
 
   useEffect(() => {
     async function fetchCourses() {
+      // ── Debug: log what credentials were baked in at build time ──────────
+      console.log("[Courses] Supabase URL present:", !!SUPABASE_URL_VALUE, "| value starts with:", SUPABASE_URL_VALUE?.slice(0, 30));
+      console.log("[Courses] Supabase key present:", !!SUPABASE_KEY_VALUE, "| key starts with:", SUPABASE_KEY_VALUE?.slice(0, 8));
+
+      if (!supabase) {
+        console.error("[Courses] Supabase client is null — credentials were missing at build time. Falling back to hardcoded courses.");
+        setLoading(false);
+        return;
+      }
+
       try {
+        console.log("[Courses] Fetching courses from Supabase...");
         const { data, error } = await supabase
           .from("courses")
           .select("*")
           .order("created_at", { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.error("[Courses] Supabase query error:", error.message, "| code:", error.code, "| details:", error.details);
+          console.log("[Courses] Falling back to hardcoded courses.");
+          setLoading(false);
+          return;
+        }
+
+        console.log("[Courses] Supabase returned", data?.length ?? 0, "courses.");
+
+        if (data && data.length > 0) {
           const mapped = (data as DbCourse[]).map(mapDbCourse);
           setCourses(mapped);
-          setUsingDb(true);
 
           // Derive category list from DB data
           const uniqueCats = Array.from(new Set(data.map((c: DbCourse) => c.category).filter(Boolean)));
           setCategories(["All", ...uniqueCats] as Category[]);
+          console.log("[Courses] Categories found:", uniqueCats);
+        } else {
+          console.log("[Courses] DB courses table is empty — showing hardcoded courses.");
         }
-        // If empty or error: keep hardcoded courses silently
-      } catch {
-        // Network or parse error: keep hardcoded courses
+      } catch (err) {
+        console.error("[Courses] Unexpected error during Supabase fetch:", err);
       } finally {
         setLoading(false);
       }
     }
+
     fetchCourses();
   }, []);
 
