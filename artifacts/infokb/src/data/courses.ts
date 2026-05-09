@@ -31,6 +31,7 @@ export interface Course {
   onSale: boolean;
   imageGradient: string;
   imageAccent: string;
+  thumbnailUrl?: string;
 }
 
 export const CATEGORIES: Category[] = [

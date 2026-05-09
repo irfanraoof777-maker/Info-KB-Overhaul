@@ -1,9 +1,69 @@
 import { useState, useEffect } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, X, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CourseCard from "@/components/CourseCard";
-import { courses, CATEGORIES, type Category } from "@/data/courses";
+import { courses as hardcodedCourses, CATEGORIES, type Course, type Category } from "@/data/courses";
+import { supabase } from "@/lib/supabase";
 import { useLocation } from "wouter";
+
+// ── DB row shape from Supabase ────────────────────────────────────────────────
+interface DbCourse {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  description: string;
+  difficulty_level: string;
+  duration: string;
+  trailer_url: string;
+  thumbnail_url: string;
+  created_at: string;
+}
+
+// Rotate through a set of gradients for DB courses that have no thumbnail
+const DB_GRADIENTS = [
+  { gradient: "linear-gradient(135deg, #0a192f 0%, #1a3a5c 50%, #0d2137 100%)", accent: "#0ea5e9" },
+  { gradient: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)", accent: "#7c3aed" },
+  { gradient: "linear-gradient(135deg, #001219 0%, #005f73 50%, #0a9396 100%)", accent: "#0d9488" },
+  { gradient: "linear-gradient(135deg, #03045e 0%, #0077b6 50%, #00b4d8 100%)", accent: "#06b6d4" },
+  { gradient: "linear-gradient(135deg, #134e4a 0%, #0f766e 50%, #14b8a6 100%)", accent: "#14b8a6" },
+  { gradient: "linear-gradient(135deg, #042f2e 0%, #065f46 50%, #047857 100%)", accent: "#34d399" },
+  { gradient: "linear-gradient(135deg, #1b1b2f 0%, #e84393 40%, #f72585 100%)", accent: "#f72585" },
+  { gradient: "linear-gradient(135deg, #0c0a09 0%, #78350f 50%, #b45309 100%)", accent: "#f59e0b" },
+];
+
+function mapDbCourse(c: DbCourse, index: number): Course {
+  const { gradient, accent } = DB_GRADIENTS[index % DB_GRADIENTS.length];
+  const level = (["Beginner", "Intermediate", "Advanced", "Expert"].includes(c.difficulty_level)
+    ? c.difficulty_level
+    : "Intermediate") as Course["level"];
+  const category = (c.category || "Cloud") as Exclude<Category, "All">;
+
+  return {
+    id: c.id,
+    slug: c.id,
+    title: c.name,
+    category,
+    duration: c.duration || "",
+    level,
+    description: c.description || "",
+    longDescription: c.description || "",
+    highlights: [],
+    curriculum: [],
+    whoIsItFor: [],
+    instructor: "InfoKB",
+    rating: 0,
+    reviewCount: 0,
+    students: 0,
+    modules: 0,
+    price: Number(c.price) || 0,
+    originalPrice: Number(c.price) || 0,
+    onSale: false,
+    imageGradient: gradient,
+    imageAccent: accent,
+    thumbnailUrl: c.thumbnail_url || undefined,
+  };
+}
 
 export default function Courses() {
   const [location] = useLocation();
@@ -12,9 +72,40 @@ export default function Courses() {
 
   const [search, setSearch] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState<Category>("All");
+  const [courses, setCourses] = useState<Course[]>(hardcodedCourses);
+  const [categories, setCategories] = useState<Category[]>(CATEGORIES);
+  const [loading, setLoading] = useState(true);
+  const [usingDb, setUsingDb] = useState(false);
 
   useEffect(() => {
     document.title = "Courses | InfoKB";
+  }, []);
+
+  useEffect(() => {
+    async function fetchCourses() {
+      try {
+        const { data, error } = await supabase
+          .from("courses")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          const mapped = (data as DbCourse[]).map(mapDbCourse);
+          setCourses(mapped);
+          setUsingDb(true);
+
+          // Derive category list from DB data
+          const uniqueCats = Array.from(new Set(data.map((c: DbCourse) => c.category).filter(Boolean)));
+          setCategories(["All", ...uniqueCats] as Category[]);
+        }
+        // If empty or error: keep hardcoded courses silently
+      } catch {
+        // Network or parse error: keep hardcoded courses
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCourses();
   }, []);
 
   const filtered = courses.filter((c) => {
@@ -49,105 +140,117 @@ export default function Courses() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            15 industry-recognized courses across Cloud, DevOps, AI, and more. Find the right certification for your career.
+            Industry-recognized courses across Cloud, DevOps, AI, and more. Find the right certification for your career.
           </motion.p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Search + Filter */}
-        <div className="mb-8 space-y-4">
-          <div className="relative max-w-lg">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search courses..."
-              className="w-full pl-11 pr-10 py-3 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
-            />
-            {search && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-28 gap-3 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm">Loading courses…</p>
           </div>
+        ) : (
+          <>
+            {/* Search + Filter */}
+            <div className="mb-8 space-y-4">
+              <div className="relative max-w-lg">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search courses..."
+                  className="w-full pl-11 pr-10 py-3 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
+                />
+                {search && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
 
-          {/* Category Pills */}
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  activeCategory === cat
-                    ? "bg-primary text-white shadow-sm"
-                    : "bg-white text-muted-foreground border border-border hover:border-primary hover:text-primary"
-                }`}
-              >
-                {cat}
-                {cat === "All" && <span className="ml-1.5 text-xs opacity-70">({courses.length})</span>}
-              </button>
-            ))}
-          </div>
-        </div>
+              {/* Category Pills */}
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                      activeCategory === cat
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-white text-muted-foreground border border-border hover:border-primary hover:text-primary"
+                    }`}
+                  >
+                    {cat}
+                    {cat === "All" && (
+                      <span className="ml-1.5 text-xs opacity-70">({courses.length})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Results count */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-muted-foreground text-sm">
-            {filtered.length === courses.length
-              ? `Showing all ${filtered.length} courses`
-              : `Showing ${filtered.length} of ${courses.length} courses`}
-          </p>
-          {(search || activeCategory !== "All") && (
-            <button
-              onClick={() => { setSearch(""); setActiveCategory("All"); }}
-              className="text-sm text-primary hover:underline flex items-center gap-1"
-            >
-              <X className="h-3.5 w-3.5" /> Clear filters
-            </button>
-          )}
-        </div>
-
-        {/* Course Grid */}
-        <AnimatePresence mode="wait">
-          {filtered.length > 0 ? (
-            <motion.div
-              key={`${activeCategory}-${search}`}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {filtered.map((course, i) => (
-                <CourseCard key={course.id} course={course} index={i} />
-              ))}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="empty"
-              className="text-center py-20"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <Search className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-40" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No courses found</h3>
-              <p className="text-muted-foreground text-sm mb-6">
-                Try a different search term or category.
+            {/* Results count */}
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-muted-foreground text-sm">
+                {filtered.length === courses.length
+                  ? `Showing all ${filtered.length} courses`
+                  : `Showing ${filtered.length} of ${courses.length} courses`}
               </p>
-              <button
-                onClick={() => { setSearch(""); setActiveCategory("All"); }}
-                className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
-              >
-                View All Courses
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {(search || activeCategory !== "All") && (
+                <button
+                  onClick={() => { setSearch(""); setActiveCategory("All"); }}
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                >
+                  <X className="h-3.5 w-3.5" /> Clear filters
+                </button>
+              )}
+            </div>
+
+            {/* Course Grid */}
+            <AnimatePresence mode="wait">
+              {filtered.length > 0 ? (
+                <motion.div
+                  key={`${activeCategory}-${search}`}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {filtered.map((course, i) => (
+                    <CourseCard key={course.id} course={course} index={i} />
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  className="text-center py-20"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <Search className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-40" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No courses found</h3>
+                  <p className="text-muted-foreground text-sm mb-6">
+                    Try a different search term or category.
+                  </p>
+                  <button
+                    onClick={() => { setSearch(""); setActiveCategory("All"); }}
+                    className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    View All Courses
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
       </div>
     </div>
   );
