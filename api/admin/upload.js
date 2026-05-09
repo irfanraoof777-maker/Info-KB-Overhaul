@@ -1,7 +1,8 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { checkBasicAuth, setCors } from "../_utils/auth.js";
 
-export const config = { api: { bodyParser: { sizeLimit: "500mb" } } };
+export const config = { api: { bodyParser: true } };
 
 function getR2Client() {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -26,31 +27,30 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { fileName, fileType, fileData } = req.body ?? {};
-    if (!fileName || !fileType || !fileData) {
-      return res.status(400).json({ error: "fileName, fileType, and fileData are required." });
+    const { fileName, fileType } = req.body ?? {};
+    if (!fileName || !fileType) {
+      return res.status(400).json({ error: "fileName and fileType are required." });
     }
 
-    const base64Data = fileData.replace(/^data:[^;]+;base64,/, "");
-    const buffer = Buffer.from(base64Data, "base64");
-
-    const ext = fileName.split(".").pop() ?? "";
-    const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const ext = fileName.split(".").pop() ?? "bin";
+    const key = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const { client, bucket } = getR2Client();
-    await client.send(new PutObjectCommand({
+
+    const command = new PutObjectCommand({
       Bucket: bucket,
-      Key: uniqueName,
-      Body: buffer,
+      Key: key,
       ContentType: fileType,
-    }));
+    });
 
-    const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL?.replace(/\/$/, "");
-    const url = `${publicUrl}/${uniqueName}`;
+    // Presigned URL valid for 60 minutes (large video uploads may take time)
+    const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
 
-    return res.status(200).json({ url });
+    const publicUrl = `${process.env.CLOUDFLARE_R2_PUBLIC_URL?.replace(/\/$/, "")}/${key}`;
+
+    return res.status(200).json({ uploadUrl, publicUrl });
   } catch (err) {
-    console.error("[upload] Error:", err);
-    return res.status(500).json({ error: err.message ?? "Upload failed." });
+    console.error("[upload] Error generating presigned URL:", err);
+    return res.status(500).json({ error: err.message ?? "Failed to generate upload URL." });
   }
 }

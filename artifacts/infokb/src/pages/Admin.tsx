@@ -134,7 +134,7 @@ function DbSetupBanner({ sql }: { sql: string }) {
   );
 }
 
-// ── R2 File Upload Button ─────────────────────────────────────────────────────
+// ── R2 File Upload Button (presigned URL — direct browser → R2) ───────────────
 
 interface UploadButtonProps {
   label: string;
@@ -147,43 +147,75 @@ interface UploadButtonProps {
 function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
-    setError("");
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const fileData = reader.result as string;
-        const res = await fetch("/api/admin/upload", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: makeBasicAuth(auth.u, auth.p),
-          },
-          body: JSON.stringify({ fileName: file.name, fileType: file.type, fileData }),
-        });
-        const data = await res.json() as { url?: string; error?: string };
-        if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed");
-        onUploaded(data.url);
-        setUploading(false);
-      };
-      reader.onerror = () => { setError("Could not read file."); setUploading(false); };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-      setUploading(false);
-    }
-    // Reset input so same file can be re-uploaded
+
+    // Reset input immediately so the same file can be re-chosen if needed
     if (inputRef.current) inputRef.current.value = "";
+
+    setUploading(true);
+    setProgress(0);
+    setError("");
+
+    try {
+      // Step 1 — ask the server for a presigned PUT URL
+      const sigRes = await fetch("/api/admin/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: makeBasicAuth(auth.u, auth.p),
+        },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+      });
+      const sigData = await sigRes.json() as { uploadUrl?: string; publicUrl?: string; error?: string };
+      if (!sigRes.ok || !sigData.uploadUrl || !sigData.publicUrl) {
+        throw new Error(sigData.error ?? "Could not get upload URL.");
+      }
+
+      // Step 2 — PUT the file directly to R2 using the presigned URL,
+      // tracking progress via XMLHttpRequest
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", sigData.uploadUrl!);
+        xhr.setRequestHeader("Content-Type", file.type);
+
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            setProgress(Math.round((ev.loaded / ev.total) * 100));
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Network error during upload."));
+        xhr.onabort = () => reject(new Error("Upload cancelled."));
+
+        xhr.send(file);
+      });
+
+      onUploaded(sigData.publicUrl!);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
   };
 
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
+
       <div className="flex items-center gap-2 flex-wrap">
         <Button
           type="button"
@@ -194,26 +226,44 @@ function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadBut
           className="flex items-center gap-2"
         >
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          {uploading ? "Uploading…" : "Upload file"}
+          {uploading ? `Uploading… ${progress}%` : "Upload file"}
         </Button>
-        {currentUrl && (
-          <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={currentUrl}>
-            ✓ Uploaded
+
+        {currentUrl && !uploading && (
+          <span className="text-xs text-[#23B33A] font-medium flex items-center gap-1">
+            <CheckCircle className="h-3.5 w-3.5" /> Uploaded
           </span>
         )}
+
         {error && <span className="text-xs text-destructive">{error}</span>}
       </div>
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleFile} />
-      {currentUrl && (
-        <div className="flex items-center gap-2 mt-1">
-          <Input
-            value={currentUrl}
-            readOnly
-            className="text-xs h-8 bg-muted/50"
+
+      {/* Progress bar */}
+      {uploading && (
+        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full transition-all duration-150"
+            style={{ width: `${progress}%` }}
           />
-          <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0"
-            onClick={() => onUploaded("")}>
-            <X className="h-3.5 w-3.5" />
+        </div>
+      )}
+
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleFile} />
+
+      {/* Filename strip with remove button */}
+      {currentUrl && !uploading && (
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-muted-foreground truncate flex-1" title={currentUrl}>
+            {currentUrl.split("/").pop()}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 shrink-0 text-muted-foreground hover:text-destructive"
+            onClick={() => onUploaded("")}
+          >
+            <X className="h-3 w-3" />
           </Button>
         </div>
       )}
