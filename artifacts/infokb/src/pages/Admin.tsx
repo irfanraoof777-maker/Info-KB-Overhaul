@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -18,24 +17,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  BookOpen,
-  Users,
-  ShoppingCart,
-  LogOut,
-  Plus,
-  Pencil,
-  Trash2,
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Eye,
-  EyeOff,
+  BookOpen, Users, ShoppingCart, LogOut, Plus, Pencil, Trash2,
+  RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
+  Copy, Eye, EyeOff, Upload, X, Loader2, PlusCircle,
 } from "lucide-react";
 
-// ── Types ───────────────────────────────────────────────────────────────────
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface Course {
   id: string;
@@ -43,9 +30,16 @@ interface Course {
   category: string;
   price: number;
   description: string;
+  long_description: string;
+  highlights: string[];
+  curriculum: { module: string; topics: string[] }[];
+  who_is_it_for: string[];
+  instructor_name: string;
+  instructor_bio: string;
   difficulty_level: string;
   duration: string;
   trailer_url: string;
+  full_video_url: string;
   thumbnail_url: string;
   created_at: string;
 }
@@ -78,25 +72,28 @@ const BLANK_COURSE: Omit<Course, "id" | "created_at"> = {
   category: "",
   price: 0,
   description: "",
+  long_description: "",
+  highlights: [],
+  curriculum: [],
+  who_is_it_for: [],
+  instructor_name: "",
+  instructor_bio: "",
   difficulty_level: "Beginner",
   duration: "",
   trailer_url: "",
+  full_video_url: "",
   thumbnail_url: "",
 };
 
 const DIFFICULTY_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert"];
-const CATEGORIES = ["Cloud", "DevOps", "Cybersecurity", "AI/ML", "Networking", "Database", "Programming", "Other"];
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
+const CATEGORIES = ["Cloud", "DevOps", "Cybersecurity", "AI/ML", "Networking", "Database", "Programming", "Infrastructure", "Agile", "Management", "Other"];
 
 function makeBasicAuth(u: string, p: string) {
   return "Basic " + btoa(`${u}:${p}`);
 }
 
 function fmt(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+  return new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function statusColor(status: string) {
@@ -105,46 +102,27 @@ function statusColor(status: string) {
   return "bg-muted text-muted-foreground";
 }
 
-// ── DB Setup Banner ──────────────────────────────────────────────────────────
+// ── DB Setup Banner ───────────────────────────────────────────────────────────
 
 function DbSetupBanner({ sql }: { sql: string }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const copy = () => {
-    navigator.clipboard.writeText(sql).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
+  const copy = () => { navigator.clipboard.writeText(sql).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
   return (
     <div className="mb-6 rounded-xl border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-700 p-4">
       <div className="flex items-start gap-3">
         <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-yellow-800 dark:text-yellow-300 text-sm">
-            Database tables not found
-          </p>
-          <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-0.5">
-            Run the SQL below in your Supabase Dashboard → SQL Editor → New Query, then refresh.
-          </p>
-          <button
-            onClick={() => setOpen(!open)}
-            className="mt-2 flex items-center gap-1 text-xs font-medium text-yellow-700 dark:text-yellow-400 hover:underline"
-          >
+          <p className="font-semibold text-yellow-800 dark:text-yellow-300 text-sm">Database tables not found</p>
+          <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-0.5">Run the SQL below in Supabase Dashboard → SQL Editor → New Query, then refresh.</p>
+          <button onClick={() => setOpen(!open)} className="mt-2 flex items-center gap-1 text-xs font-medium text-yellow-700 dark:text-yellow-400 hover:underline">
             {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             {open ? "Hide SQL" : "Show SQL"}
           </button>
           {open && (
             <div className="mt-2 relative">
-              <pre className="text-xs bg-yellow-100 dark:bg-yellow-900/30 rounded-lg p-3 overflow-auto max-h-56 font-mono text-yellow-900 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-700">
-                {sql}
-              </pre>
-              <button
-                onClick={copy}
-                className="absolute top-2 right-2 flex items-center gap-1 text-xs bg-white dark:bg-card border border-yellow-300 dark:border-yellow-600 text-yellow-700 dark:text-yellow-300 rounded px-2 py-1 hover:bg-yellow-50"
-              >
+              <pre className="text-xs bg-yellow-100 dark:bg-yellow-900/30 rounded-lg p-3 overflow-auto max-h-56 font-mono text-yellow-900 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-700">{sql}</pre>
+              <button onClick={copy} className="absolute top-2 right-2 flex items-center gap-1 text-xs bg-white dark:bg-card border border-yellow-300 dark:border-yellow-600 text-yellow-700 dark:text-yellow-300 rounded px-2 py-1 hover:bg-yellow-50">
                 {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                 {copied ? "Copied!" : "Copy"}
               </button>
@@ -156,7 +134,211 @@ function DbSetupBanner({ sql }: { sql: string }) {
   );
 }
 
-// ── Course Form Modal ────────────────────────────────────────────────────────
+// ── R2 File Upload Button ─────────────────────────────────────────────────────
+
+interface UploadButtonProps {
+  label: string;
+  accept: string;
+  currentUrl: string;
+  onUploaded: (url: string) => void;
+  auth: { u: string; p: string };
+}
+
+function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadButtonProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const fileData = reader.result as string;
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: makeBasicAuth(auth.u, auth.p),
+          },
+          body: JSON.stringify({ fileName: file.name, fileType: file.type, fileData }),
+        });
+        const data = await res.json() as { url?: string; error?: string };
+        if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed");
+        onUploaded(data.url);
+        setUploading(false);
+      };
+      reader.onerror = () => { setError("Could not read file."); setUploading(false); };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+      setUploading(false);
+    }
+    // Reset input so same file can be re-uploaded
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-2"
+        >
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          {uploading ? "Uploading…" : "Upload file"}
+        </Button>
+        {currentUrl && (
+          <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={currentUrl}>
+            ✓ Uploaded
+          </span>
+        )}
+        {error && <span className="text-xs text-destructive">{error}</span>}
+      </div>
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleFile} />
+      {currentUrl && (
+        <div className="flex items-center gap-2 mt-1">
+          <Input
+            value={currentUrl}
+            readOnly
+            className="text-xs h-8 bg-muted/50"
+          />
+          <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0"
+            onClick={() => onUploaded("")}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Curriculum Editor ─────────────────────────────────────────────────────────
+
+function CurriculumEditor({
+  value,
+  onChange,
+}: {
+  value: { module: string; topics: string[] }[];
+  onChange: (v: { module: string; topics: string[] }[]) => void;
+}) {
+  const addModule = () => onChange([...value, { module: "", topics: [""] }]);
+  const removeModule = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  const setModule = (i: number, name: string) => {
+    const next = [...value];
+    next[i] = { ...next[i], module: name };
+    onChange(next);
+  };
+  const addTopic = (i: number) => {
+    const next = [...value];
+    next[i] = { ...next[i], topics: [...next[i].topics, ""] };
+    onChange(next);
+  };
+  const removeTopic = (i: number, j: number) => {
+    const next = [...value];
+    next[i] = { ...next[i], topics: next[i].topics.filter((_, idx) => idx !== j) };
+    onChange(next);
+  };
+  const setTopic = (i: number, j: number, v: string) => {
+    const next = [...value];
+    const topics = [...next[i].topics];
+    topics[j] = v;
+    next[i] = { ...next[i], topics };
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3">
+      {value.map((mod, i) => (
+        <div key={i} className="border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              value={mod.module}
+              onChange={(e) => setModule(i, e.target.value)}
+              placeholder={`Module ${i + 1} title`}
+              className="text-sm"
+            />
+            <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => removeModule(i)}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          {mod.topics.map((t, j) => (
+            <div key={j} className="flex items-center gap-2 pl-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground shrink-0" />
+              <Input
+                value={t}
+                onChange={(e) => setTopic(i, j, e.target.value)}
+                placeholder={`Topic ${j + 1}`}
+                className="text-sm h-8"
+              />
+              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
+                onClick={() => removeTopic(i, j)}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+          <Button type="button" variant="ghost" size="sm" className="ml-4 h-7 text-xs gap-1 text-muted-foreground"
+            onClick={() => addTopic(i)}>
+            <Plus className="h-3 w-3" /> Add topic
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addModule}>
+        <PlusCircle className="h-4 w-4" /> Add Module
+      </Button>
+    </div>
+  );
+}
+
+// ── Bullet List Editor (highlights / who_is_it_for) ───────────────────────────
+
+function BulletListEditor({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+}) {
+  const add = () => onChange([...value, ""]);
+  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  const set = (i: number, v: string) => { const next = [...value]; next[i] = v; onChange(next); };
+
+  return (
+    <div className="space-y-2">
+      {value.map((item, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground shrink-0" />
+          <Input
+            value={item}
+            onChange={(e) => set(i, e.target.value)}
+            placeholder={placeholder}
+            className="text-sm h-8"
+          />
+          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"
+            onClick={() => remove(i)}>
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={add}>
+        <Plus className="h-3.5 w-3.5" /> Add item
+      </Button>
+    </div>
+  );
+}
+
+// ── Course Form Modal ─────────────────────────────────────────────────────────
 
 interface CourseModalProps {
   open: boolean;
@@ -168,17 +350,22 @@ interface CourseModalProps {
 
 function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps) {
   const isEdit = !!initial?.id;
-  const [form, setForm] = useState({ ...BLANK_COURSE, ...initial });
+  const [form, setForm] = useState<Omit<Course, "id" | "created_at">>({ ...BLANK_COURSE });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setForm({ ...BLANK_COURSE, ...initial });
+    setForm({
+      ...BLANK_COURSE,
+      ...initial,
+      highlights: Array.isArray(initial?.highlights) ? initial.highlights : [],
+      curriculum: Array.isArray(initial?.curriculum) ? initial.curriculum : [],
+      who_is_it_for: Array.isArray(initial?.who_is_it_for) ? initial.who_is_it_for : [],
+    });
     setError("");
   }, [initial, open]);
 
-  const set = (k: string, v: string | number) =>
-    setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,10 +377,7 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
       const method = isEdit ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: makeBasicAuth(auth.u, auth.p),
-        },
+        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
         body: JSON.stringify(form),
       });
       if (!res.ok) {
@@ -211,20 +395,17 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Course" : "Add New Course"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="space-y-6 py-2">
+
+          {/* ── Basic info ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2 space-y-1.5">
               <Label>Course Name *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                placeholder="e.g. AWS Solutions Architect"
-                required
-              />
+              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. AWS Solutions Architect" required />
             </div>
 
             <div className="space-y-1.5">
@@ -232,23 +413,15 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
               <Select value={form.category} onValueChange={(v) => set("category", v)}>
                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
+                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label>Price (₹)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.price}
-                onChange={(e) => set("price", parseFloat(e.target.value) || 0)}
-                placeholder="0"
-              />
+              <Input type="number" min="0" step="0.01" value={form.price}
+                onChange={(e) => set("price", parseFloat(e.target.value) || 0)} placeholder="0" />
             </div>
 
             <div className="space-y-1.5">
@@ -256,69 +429,127 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
               <Select value={form.difficulty_level} onValueChange={(v) => set("difficulty_level", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {DIFFICULTY_LEVELS.map((d) => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
+                  {DIFFICULTY_LEVELS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label>Duration</Label>
-              <Input
-                value={form.duration}
-                onChange={(e) => set("duration", e.target.value)}
-                placeholder="e.g. 40 hours"
-              />
-            </div>
-
-            <div className="sm:col-span-2 space-y-1.5">
-              <Label>Description</Label>
-              <textarea
-                className="w-full min-h-[90px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-                value={form.description}
-                onChange={(e) => set("description", e.target.value)}
-                placeholder="Short course description…"
-              />
-            </div>
-
-            <div className="sm:col-span-2 space-y-1.5">
-              <Label>Trailer Video URL</Label>
-              <Input
-                value={form.trailer_url}
-                onChange={(e) => set("trailer_url", e.target.value)}
-                placeholder="https://youtube.com/..."
-              />
-            </div>
-
-            <div className="sm:col-span-2 space-y-1.5">
-              <Label>Thumbnail Image URL</Label>
-              <Input
-                value={form.thumbnail_url}
-                onChange={(e) => set("thumbnail_url", e.target.value)}
-                placeholder="https://..."
-              />
-              {form.thumbnail_url && (
-                <img
-                  src={form.thumbnail_url}
-                  alt="Preview"
-                  className="mt-1 h-24 w-40 rounded-lg object-cover border border-border"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
-                />
-              )}
+              <Input value={form.duration} onChange={(e) => set("duration", e.target.value)} placeholder="e.g. 3 Days" />
             </div>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
+          {/* ── Description ── */}
+          <div className="space-y-1.5">
+            <Label>Short Description</Label>
+            <textarea
+              className="w-full min-h-[70px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="One-line course description shown on cards…"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>About This Course</Label>
+            <textarea
+              className="w-full min-h-[100px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              value={form.long_description}
+              onChange={(e) => set("long_description", e.target.value)}
+              placeholder="Detailed course description shown on the course detail page…"
+            />
+          </div>
+
+          {/* ── What you'll learn ── */}
+          <div className="space-y-2">
+            <Label>What You'll Learn</Label>
+            <BulletListEditor
+              value={form.highlights}
+              onChange={(v) => set("highlights", v)}
+              placeholder="e.g. Build and deploy cloud infrastructure"
+            />
+          </div>
+
+          {/* ── Curriculum ── */}
+          <div className="space-y-2">
+            <Label>Course Curriculum</Label>
+            <CurriculumEditor value={form.curriculum} onChange={(v) => set("curriculum", v)} />
+          </div>
+
+          {/* ── Who is it for ── */}
+          <div className="space-y-2">
+            <Label>Who Is This For</Label>
+            <BulletListEditor
+              value={form.who_is_it_for}
+              onChange={(v) => set("who_is_it_for", v)}
+              placeholder="e.g. Cloud Engineers"
+            />
+          </div>
+
+          {/* ── Instructor ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Instructor Name</Label>
+              <Input value={form.instructor_name} onChange={(e) => set("instructor_name", e.target.value)} placeholder="e.g. Ravi Kumar" />
+            </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label>Instructor Bio</Label>
+              <textarea
+                className="w-full min-h-[70px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                value={form.instructor_bio}
+                onChange={(e) => set("instructor_bio", e.target.value)}
+                placeholder="Brief instructor background…"
+              />
+            </div>
+          </div>
+
+          {/* ── Media uploads ── */}
+          <div className="space-y-4 border border-border rounded-xl p-4 bg-muted/20">
+            <p className="text-sm font-semibold text-foreground">Media & Files</p>
+
+            <UploadButton
+              label="Thumbnail Image"
+              accept="image/*"
+              currentUrl={form.thumbnail_url}
+              onUploaded={(url) => set("thumbnail_url", url)}
+              auth={auth}
+            />
+            {form.thumbnail_url && (
+              <img src={form.thumbnail_url} alt="Thumbnail preview"
+                className="h-24 w-40 rounded-lg object-cover border border-border"
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            )}
+
+            <UploadButton
+              label="Trailer Video"
+              accept="video/*"
+              currentUrl={form.trailer_url}
+              onUploaded={(url) => set("trailer_url", url)}
+              auth={auth}
+            />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Or paste a YouTube/video URL</Label>
+              <Input value={form.trailer_url} onChange={(e) => set("trailer_url", e.target.value)} placeholder="https://youtube.com/..." className="text-sm" />
+            </div>
+
+            <UploadButton
+              label="Full Course Video"
+              accept="video/*"
+              currentUrl={form.full_video_url}
+              onUploaded={(url) => set("full_video_url", url)}
+              auth={auth}
+            />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Or paste a video URL</Label>
+              <Input value={form.full_video_url} onChange={(e) => set("full_video_url", e.target.value)} placeholder="https://..." className="text-sm" />
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
 
           <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={saving}>
               {saving ? "Saving…" : isEdit ? "Save Changes" : "Add Course"}
             </Button>
@@ -329,7 +560,7 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
   );
 }
 
-// ── Courses Tab ──────────────────────────────────────────────────────────────
+// ── Courses Tab ───────────────────────────────────────────────────────────────
 
 function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -341,34 +572,24 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    setSetupSql("");
+    setLoading(true); setError(""); setSetupSql("");
     try {
-      const res = await fetch("/api/admin/courses", {
-        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-      });
+      const res = await fetch("/api/admin/courses", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         const msg = (d as { error?: string }).error ?? "Failed to load courses.";
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
-          const sr = await fetch("/api/admin/db-status", {
-            headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-          });
+          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
           if (sd.sql) setSetupSql(sd.sql);
-        } else {
-          setError(msg);
-        }
+        } else { setError(msg); }
         return;
       }
       const data = await res.json() as { courses: Course[] };
       setCourses(data.courses ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [auth]);
 
   useEffect(() => { load(); }, [load]);
@@ -377,17 +598,11 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
     if (!confirm("Delete this course permanently?")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/courses/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-      });
+      const res = await fetch(`/api/admin/courses/${id}`, { method: "DELETE", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) throw new Error("Delete failed");
       await load();
-    } catch {
-      alert("Delete failed. Please try again.");
-    } finally {
-      setDeletingId(null);
-    }
+    } catch { alert("Delete failed. Please try again."); }
+    finally { setDeletingId(null); }
   };
 
   return (
@@ -399,23 +614,16 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />Refresh
           </Button>
           <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Course
+            <Plus className="h-4 w-4 mr-1.5" />Add Course
           </Button>
         </div>
       </div>
 
       {setupSql && <DbSetupBanner sql={setupSql} />}
-
-      {error && (
-        <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>}
 
       {loading ? (
         <div className="text-center py-16 text-muted-foreground animate-pulse">Loading courses…</div>
@@ -423,13 +631,8 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
         <div className="text-center py-16">
           <BookOpen className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
           <p className="text-muted-foreground">No courses yet.</p>
-          <Button
-            size="sm"
-            className="mt-4"
-            onClick={() => { setEditing(null); setModalOpen(true); }}
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add your first course
+          <Button size="sm" className="mt-4" onClick={() => { setEditing(null); setModalOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1.5" />Add your first course
           </Button>
         </div>
       ) : (
@@ -452,12 +655,8 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {c.thumbnail_url ? (
-                          <img
-                            src={c.thumbnail_url}
-                            alt=""
-                            className="h-10 w-14 rounded-md object-cover border border-border shrink-0"
-                            onError={(e) => { e.currentTarget.style.display = "none"; }}
-                          />
+                          <img src={c.thumbnail_url} alt="" className="h-10 w-14 rounded-md object-cover border border-border shrink-0"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }} />
                         ) : (
                           <div className="h-10 w-14 rounded-md bg-muted flex items-center justify-center shrink-0">
                             <BookOpen className="h-4 w-4 text-muted-foreground/40" />
@@ -465,20 +664,12 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
                         )}
                         <div>
                           <p className="font-medium text-foreground leading-tight">{c.name}</p>
-                          {c.description && (
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 max-w-xs">
-                              {c.description}
-                            </p>
-                          )}
+                          {c.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 max-w-xs">{c.description}</p>}
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      {c.category ? (
-                        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {c.category}
-                        </span>
-                      ) : "—"}
+                      {c.category ? <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">{c.category}</span> : "—"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">{c.difficulty_level || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{c.duration || "—"}</td>
@@ -487,21 +678,12 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => { setEditing(c); setModalOpen(true); }}
-                        >
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
+                          onClick={() => { setEditing(c); setModalOpen(true); }}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          disabled={deletingId === c.id}
-                          onClick={() => handleDelete(c.id)}
-                        >
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={deletingId === c.id} onClick={() => handleDelete(c.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -514,18 +696,12 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
         </div>
       )}
 
-      <CourseModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        initial={editing}
-        auth={auth}
-        onSaved={load}
-      />
+      <CourseModal open={modalOpen} onClose={() => setModalOpen(false)} initial={editing} auth={auth} onSaved={load} />
     </div>
   );
 }
 
-// ── Students Tab ─────────────────────────────────────────────────────────────
+// ── Students Tab ──────────────────────────────────────────────────────────────
 
 function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
   const [students, setStudents] = useState<Student[]>([]);
@@ -535,34 +711,24 @@ function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    setSetupSql("");
+    setLoading(true); setError(""); setSetupSql("");
     try {
-      const res = await fetch("/api/admin/students", {
-        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-      });
+      const res = await fetch("/api/admin/students", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         const msg = (d as { error?: string }).error ?? "Failed to load.";
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
-          const sr = await fetch("/api/admin/db-status", {
-            headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-          });
+          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
           if (sd.sql) setSetupSql(sd.sql);
-        } else {
-          setError(msg);
-        }
+        } else { setError(msg); }
         return;
       }
       const data = await res.json() as { students: Student[] };
       setStudents(data.students ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [auth]);
 
   useEffect(() => { load(); }, [load]);
@@ -575,15 +741,12 @@ function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
           <p className="text-sm text-muted-foreground">{students.length} registered student{students.length !== 1 ? "s" : ""}</p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />Refresh
         </Button>
       </div>
 
       {setupSql && <DbSetupBanner sql={setupSql} />}
-      {error && (
-        <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>
-      )}
+      {error && <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>}
 
       {loading ? (
         <div className="text-center py-16 text-muted-foreground animate-pulse">Loading students…</div>
@@ -606,27 +769,18 @@ function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
             <tbody className="divide-y divide-border">
               {students.map((s) => (
                 <>
-                  <tr
-                    key={s.id}
-                    className="hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
-                  >
+                  <tr key={s.id} className="hover:bg-muted/20 transition-colors cursor-pointer"
+                    onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-primary">
-                            {(s.email[0] ?? "?").toUpperCase()}
-                          </span>
+                          <span className="text-xs font-bold text-primary">{(s.email[0] ?? "?").toUpperCase()}</span>
                         </div>
                         <span className="font-medium text-foreground">{s.email}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                      {fmt(s.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
-                      {s.last_sign_in_at ? fmt(s.last_sign_in_at) : "Never"}
-                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{fmt(s.created_at)}</td>
+                    <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{s.last_sign_in_at ? fmt(s.last_sign_in_at) : "Never"}</td>
                     <td className="px-4 py-3 text-right">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                         {s.enrollments.length} enrolled
@@ -636,21 +790,14 @@ function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
                   {expandedId === s.id && s.enrollments.length > 0 && (
                     <tr key={`${s.id}-exp`} className="bg-muted/30">
                       <td colSpan={4} className="px-4 py-3">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                          Enrolled Courses
-                        </p>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Enrolled Courses</p>
                         <div className="flex flex-wrap gap-2">
                           {s.enrollments.map((e, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-2 bg-white dark:bg-card rounded-lg px-3 py-1.5 border border-border text-xs"
-                            >
+                            <div key={i} className="flex items-center gap-2 bg-white dark:bg-card rounded-lg px-3 py-1.5 border border-border text-xs">
                               <BookOpen className="h-3 w-3 text-primary shrink-0" />
                               <span className="font-medium">{e.course?.name ?? "Unknown"}</span>
                               {e.course?.price != null && (
-                                <span className="text-muted-foreground">
-                                  ₹{Number(e.course.price).toLocaleString("en-IN")}
-                                </span>
+                                <span className="text-muted-foreground">₹{Number(e.course.price).toLocaleString("en-IN")}</span>
                               )}
                             </div>
                           ))}
@@ -668,7 +815,7 @@ function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
   );
 }
 
-// ── Orders Tab ───────────────────────────────────────────────────────────────
+// ── Orders Tab ────────────────────────────────────────────────────────────────
 
 function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -677,41 +824,29 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
   const [setupSql, setSetupSql] = useState("");
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    setSetupSql("");
+    setLoading(true); setError(""); setSetupSql("");
     try {
-      const res = await fetch("/api/admin/orders", {
-        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-      });
+      const res = await fetch("/api/admin/orders", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         const msg = (d as { error?: string }).error ?? "Failed to load.";
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
-          const sr = await fetch("/api/admin/db-status", {
-            headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-          });
+          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
           if (sd.sql) setSetupSql(sd.sql);
-        } else {
-          setError(msg);
-        }
+        } else { setError(msg); }
         return;
       }
       const data = await res.json() as { orders: Order[] };
       setOrders(data.orders ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [auth]);
 
   useEffect(() => { load(); }, [load]);
 
-  const total = orders
-    .filter((o) => o.status === "completed")
-    .reduce((sum, o) => sum + Number(o.amount), 0);
+  const total = orders.filter((o) => o.status === "completed").reduce((sum, o) => sum + Number(o.amount), 0);
 
   return (
     <div>
@@ -724,15 +859,12 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />Refresh
         </Button>
       </div>
 
       {setupSql && <DbSetupBanner sql={setupSql} />}
-      {error && (
-        <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>
-      )}
+      {error && <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>}
 
       {loading ? (
         <div className="text-center py-16 text-muted-foreground animate-pulse">Loading orders…</div>
@@ -761,29 +893,19 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
                     <td className="px-4 py-3 font-medium text-foreground">{o.user_email || "—"}</td>
                     <td className="px-4 py-3 text-foreground">{o.course_name || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{fmt(o.created_at)}</td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs hidden lg:table-cell">
-                      {o.payment_id || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs hidden lg:table-cell">{o.payment_id || "—"}</td>
                     <td className="px-4 py-3 text-center hidden sm:table-cell">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(o.status)}`}>
-                        {o.status}
-                      </span>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(o.status)}`}>{o.status}</span>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">
-                      ₹{Number(o.amount).toLocaleString("en-IN")}
-                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-foreground">₹{Number(o.amount).toLocaleString("en-IN")}</td>
                   </tr>
                 ))}
               </tbody>
               {total > 0 && (
                 <tfoot className="bg-muted/30 border-t-2 border-border">
                   <tr>
-                    <td colSpan={5} className="px-4 py-3 text-right text-sm font-semibold text-foreground/70">
-                      Total Revenue
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-foreground">
-                      ₹{total.toLocaleString("en-IN")}
-                    </td>
+                    <td colSpan={5} className="px-4 py-3 text-right text-sm font-semibold text-foreground/70">Total Revenue</td>
+                    <td className="px-4 py-3 text-right font-bold text-foreground">₹{total.toLocaleString("en-IN")}</td>
                   </tr>
                 </tfoot>
               )}
@@ -795,7 +917,7 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
   );
 }
 
-// ── Main Admin Component ─────────────────────────────────────────────────────
+// ── Main Admin Component ──────────────────────────────────────────────────────
 
 export default function Admin() {
   const [username, setUsername] = useState("");
@@ -807,14 +929,11 @@ export default function Admin() {
   const [tab, setTab] = useState<Tab>("courses");
   const usernameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    usernameRef.current?.focus();
-  }, []);
+  useEffect(() => { usernameRef.current?.focus(); }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAuthError("");
-    setAuthLoading(true);
+    setAuthError(""); setAuthLoading(true);
     try {
       const res = await fetch("/api/admin/verify", {
         method: "POST",
@@ -822,28 +941,14 @@ export default function Admin() {
         body: JSON.stringify({ username, password }),
       });
       let data: { ok?: boolean; error?: string } = {};
-      try { data = await res.json(); } catch { /* ignore non-JSON */ }
-      if (res.status === 401) {
-        setAuthError("Incorrect username or password.");
-        return;
-      }
-      if (!res.ok) {
-        setAuthError(data.error ?? "Server error. Please try again.");
-        return;
-      }
-      if (data.ok) {
-        setAuthed(true);
-      } else {
-        setAuthError("Incorrect username or password.");
-      }
-    } catch {
-      setAuthError("Could not reach the server. Please try again.");
-    } finally {
-      setAuthLoading(false);
-    }
+      try { data = await res.json(); } catch { /* ignore */ }
+      if (res.status === 401) { setAuthError("Incorrect username or password."); return; }
+      if (!res.ok) { setAuthError(data.error ?? "Server error. Please try again."); return; }
+      if (data.ok) { setAuthed(true); } else { setAuthError("Incorrect username or password."); }
+    } catch { setAuthError("Could not reach the server. Please try again."); }
+    finally { setAuthLoading(false); }
   };
 
-  // ── Login Screen ────────────────────────────────────────────
   if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 dark:bg-background px-4">
@@ -855,52 +960,27 @@ export default function Admin() {
             <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
             <p className="text-sm text-muted-foreground mt-1">Enter your credentials to continue</p>
           </div>
-
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-1.5">
               <Label htmlFor="admin-user">Username</Label>
-              <Input
-                id="admin-user"
-                ref={usernameRef}
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                autoComplete="username"
-                className="text-foreground bg-background"
-              />
+              <Input id="admin-user" ref={usernameRef} type="text" value={username}
+                onChange={(e) => setUsername(e.target.value)} required autoComplete="username"
+                className="text-foreground bg-background" />
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="admin-pass">Password</Label>
               <div className="relative">
-                <Input
-                  id="admin-pass"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="text-foreground bg-background pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
+                <Input id="admin-pass" type={showPassword ? "text" : "password"} value={password}
+                  onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password"
+                  className="text-foreground bg-background pr-10" />
+                <button type="button" onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
+                  tabIndex={-1}>
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-
-            {authError && (
-              <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
-                {authError}
-              </p>
-            )}
-
+            {authError && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{authError}</p>}
             <Button type="submit" className="w-full" disabled={authLoading}>
               {authLoading ? "Verifying…" : "Enter Admin Panel"}
             </Button>
@@ -910,9 +990,7 @@ export default function Admin() {
     );
   }
 
-  // ── Admin Panel Layout ──────────────────────────────────────
   const auth = { u: username, p: password };
-
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> },
     { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> },
@@ -921,30 +999,22 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-muted/20 dark:bg-background pt-16">
-      {/* Top bar */}
       <div className="sticky top-16 z-40 bg-white dark:bg-card border-b border-border shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-1">
               {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
+                <button key={t.id} onClick={() => setTab(t.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    tab === t.id
-                      ? "bg-primary text-white"
-                      : "text-foreground/60 hover:text-foreground hover:bg-muted"
-                  }`}
-                >
+                    tab === t.id ? "bg-primary text-white" : "text-foreground/60 hover:text-foreground hover:bg-muted"
+                  }`}>
                   {t.icon}
                   <span className="hidden sm:inline">{t.label}</span>
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => { setAuthed(false); setUsername(""); setPassword(""); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
+            <button onClick={() => { setAuthed(false); setUsername(""); setPassword(""); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Logout</span>
             </button>
@@ -952,7 +1022,6 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {tab === "courses" && <CoursesTab auth={auth} />}
         {tab === "students" && <StudentsTab auth={auth} />}

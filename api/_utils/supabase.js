@@ -12,18 +12,36 @@ export function getSupabaseAdmin() {
 export const SETUP_SQL = `-- Run this once in your Supabase Dashboard → SQL Editor → New Query
 
 CREATE TABLE IF NOT EXISTS public.courses (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name          text NOT NULL,
-  category      text NOT NULL DEFAULT '',
-  price         numeric(10,2) NOT NULL DEFAULT 0,
-  description   text NOT NULL DEFAULT '',
-  difficulty_level text NOT NULL DEFAULT 'Beginner',
-  duration      text NOT NULL DEFAULT '',
-  trailer_url   text NOT NULL DEFAULT '',
-  thumbnail_url text NOT NULL DEFAULT '',
-  created_at    timestamptz DEFAULT now(),
-  updated_at    timestamptz DEFAULT now()
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              text NOT NULL,
+  category          text NOT NULL DEFAULT '',
+  price             numeric(10,2) NOT NULL DEFAULT 0,
+  description       text NOT NULL DEFAULT '',
+  long_description  text NOT NULL DEFAULT '',
+  highlights        text[] NOT NULL DEFAULT '{}',
+  curriculum        jsonb NOT NULL DEFAULT '[]',
+  who_is_it_for     text[] NOT NULL DEFAULT '{}',
+  instructor_name   text NOT NULL DEFAULT '',
+  instructor_bio    text NOT NULL DEFAULT '',
+  difficulty_level  text NOT NULL DEFAULT 'Beginner',
+  duration          text NOT NULL DEFAULT '',
+  trailer_url       text NOT NULL DEFAULT '',
+  full_video_url    text NOT NULL DEFAULT '',
+  thumbnail_url     text NOT NULL DEFAULT '',
+  created_at        timestamptz DEFAULT now(),
+  updated_at        timestamptz DEFAULT now()
 );
+
+-- Allow public (anon) read access
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename='courses' AND policyname='Allow public read access on courses'
+  ) THEN
+    ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY "Allow public read access on courses"
+      ON public.courses FOR SELECT TO anon USING (true);
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.orders (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,4 +61,16 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
   course_id   uuid REFERENCES public.courses(id) ON DELETE CASCADE,
   enrolled_at timestamptz DEFAULT now(),
   UNIQUE(user_id, course_id)
-);`;
+);
+
+-- RLS for enrollments: users can only see their own
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename='enrollments' AND policyname='Users read own enrollments'
+  ) THEN
+    ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY "Users read own enrollments"
+      ON public.enrollments FOR SELECT TO authenticated
+      USING (auth.uid() = user_id);
+  END IF;
+END $$;`;

@@ -1,5 +1,5 @@
-import { Link } from "wouter";
-import { Star, BookOpen, Users, ArrowRight } from "lucide-react";
+import { useLocation } from "wouter";
+import { Star, BookOpen, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Course } from "@/data/courses";
 
@@ -51,6 +51,7 @@ interface CourseCardProps {
 }
 
 export default function CourseCard({ course, index = 0 }: CourseCardProps) {
+  const [, navigate] = useLocation();
   const hasThumbnail = !!course.thumbnailUrl;
 
   return (
@@ -59,7 +60,8 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.4, delay: index * 0.06 }}
-      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 border border-border flex flex-col"
+      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 border border-border flex flex-col cursor-pointer"
+      onClick={() => navigate(`/courses/${course.slug}`)}
     >
       {/* Hero image panel */}
       <div className="relative h-44 w-full overflow-hidden">
@@ -77,7 +79,6 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
         ) : (
           <>
             <div className="absolute inset-0" style={{ background: course.imageGradient }} />
-            {/* Tech pattern overlay */}
             <svg className="absolute inset-0 w-full h-full opacity-10" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice">
               <defs>
                 <pattern id={`grid-${course.id}`} width="40" height="40" patternUnits="userSpaceOnUse">
@@ -98,18 +99,12 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
                 </div>
               </div>
             </div>
-            <div
-              className="absolute -bottom-6 -right-6 w-32 h-32 rounded-full blur-2xl opacity-40"
-              style={{ backgroundColor: course.imageAccent }}
-            />
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 rounded-full blur-2xl opacity-40" style={{ backgroundColor: course.imageAccent }} />
           </>
         )}
 
-        {/* Badges */}
         {course.onSale && (
-          <span className="absolute top-3 left-3 bg-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm tracking-wide uppercase">
-            SALE
-          </span>
+          <span className="absolute top-3 left-3 bg-rose-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm tracking-wide uppercase">SALE</span>
         )}
         {course.level && (
           <span className={`absolute top-3 right-3 text-white text-xs font-semibold px-2.5 py-1 rounded-lg shadow-sm ${levelColors[course.level] ?? "bg-primary text-white"}`}>
@@ -125,33 +120,28 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
 
       {/* Card body */}
       <div className="p-5 flex flex-col flex-1">
-        {/* Category */}
         {course.category && (
           <span className={`text-xs font-bold uppercase tracking-widest mb-2 ${categoryColors[course.category] ?? "text-primary"}`}>
             {course.category}
           </span>
         )}
 
-        {/* Title */}
         <h3 className="font-bold text-foreground text-base leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-2">
           {course.title}
         </h3>
 
-        {/* Description */}
         {course.description && (
           <p className="text-muted-foreground text-sm leading-relaxed mb-3 line-clamp-2 flex-1">
             {course.description}
           </p>
         )}
 
-        {/* Instructor */}
         {course.instructor && course.instructor !== "InfoKB" && (
           <p className="text-xs text-muted-foreground mb-3">
             by <span className="font-semibold text-foreground">{course.instructor}</span>
           </p>
         )}
 
-        {/* Rating */}
         {course.rating > 0 && (
           <div className="mb-4">
             <StarRating rating={course.rating} />
@@ -162,7 +152,6 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
         )}
 
         <div className="border-t border-border pt-4 mt-auto">
-          {/* Price row */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-extrabold text-foreground">{formatPrice(course.price)}</span>
@@ -172,37 +161,18 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
             </div>
             {(course.modules > 0 || course.students > 0) && (
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {course.modules > 0 && (
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="h-3.5 w-3.5" />
-                    {course.modules}
-                  </span>
-                )}
-                {course.students > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" />
-                    {course.students.toLocaleString()}
-                  </span>
-                )}
+                {course.modules > 0 && <span className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" />{course.modules}</span>}
+                {course.students > 0 && <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{course.students.toLocaleString()}</span>}
               </div>
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2">
-            <a
-              href="tel:+919652429090"
-              className="flex-1 py-2.5 bg-[#23B33A] hover:bg-[#1ca033] text-white text-sm font-semibold rounded-xl text-center transition-colors"
-            >
-              Enquire Now
-            </a>
-            <Link
-              href={`/courses/${course.slug}`}
-              className="px-3 py-2.5 border border-border hover:border-primary hover:text-primary text-muted-foreground rounded-xl transition-colors flex items-center"
-            >
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <button
+            className="w-full py-2.5 bg-[#23B33A] hover:bg-[#1ca033] text-white text-sm font-semibold rounded-xl text-center transition-colors"
+            onClick={(e) => { e.stopPropagation(); navigate(`/courses/${course.slug}`); }}
+          >
+            Enroll Now
+          </button>
         </div>
       </div>
     </motion.div>

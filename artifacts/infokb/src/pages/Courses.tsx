@@ -13,9 +13,15 @@ interface DbCourse {
   category: string;
   price: number;
   description: string;
+  long_description: string;
+  highlights: string[];
+  curriculum: { module: string; topics: string[] }[];
+  who_is_it_for: string[];
+  instructor_name: string;
   difficulty_level: string;
   duration: string;
   trailer_url: string;
+  full_video_url: string;
   thumbnail_url: string;
   created_at: string;
 }
@@ -47,15 +53,15 @@ function mapDbCourse(c: DbCourse, index: number): Course {
     duration: c.duration || "",
     level,
     description: c.description || "",
-    longDescription: c.description || "",
-    highlights: [],
-    curriculum: [],
-    whoIsItFor: [],
-    instructor: "InfoKB",
+    longDescription: c.long_description || c.description || "",
+    highlights: Array.isArray(c.highlights) ? c.highlights : [],
+    curriculum: Array.isArray(c.curriculum) ? c.curriculum : [],
+    whoIsItFor: Array.isArray(c.who_is_it_for) ? c.who_is_it_for : [],
+    instructor: c.instructor_name || "InfoKB",
     rating: 0,
     reviewCount: 0,
     students: 0,
-    modules: 0,
+    modules: Array.isArray(c.curriculum) ? c.curriculum.length : 0,
     price: Number(c.price) || 0,
     originalPrice: Number(c.price) || 0,
     onSale: false,
