@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, Mail, MapPin, CheckCircle, Clock } from "lucide-react";
-import { courses } from "@/data/courses";
+import { supabase } from "@/lib/supabase";
 
 export default function Contact() {
   useEffect(() => {
@@ -16,6 +16,19 @@ export default function Contact() {
     message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [courseNames, setCourseNames] = useState<string[]>([]);
+
+  // Fetch course names for the dropdown
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("courses")
+      .select("name")
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        if (data) setCourseNames(data.map((c: { name: string }) => c.name));
+      });
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +189,7 @@ export default function Contact() {
                         />
                       </div>
                     </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Phone Number</label>
@@ -195,13 +209,14 @@ export default function Contact() {
                           className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all bg-white"
                         >
                           <option value="">Select a course...</option>
-                          {courses.map((c) => (
-                            <option key={c.id} value={c.title}>{c.title}</option>
+                          {courseNames.map((name) => (
+                            <option key={name} value={name}>{name}</option>
                           ))}
                           <option value="Not sure">Not sure yet</option>
                         </select>
                       </div>
                     </div>
+
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Message</label>
                       <textarea
@@ -212,6 +227,7 @@ export default function Contact() {
                         placeholder="Tell us about your training needs, preferred dates, or any questions you have..."
                       />
                     </div>
+
                     <button
                       type="submit"
                       className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl transition-colors text-sm"

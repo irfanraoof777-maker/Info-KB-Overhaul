@@ -1,12 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Clock, BarChart2, CheckCircle, ArrowLeft, ChevronDown, ChevronUp, Play, Lock, User, Loader2 } from "lucide-react";
-import { courses as hardcodedCourses } from "@/data/courses";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 
-// ── DB row shape ─────────────────────────────────────────────────────────────
+// ── DB row shape ──────────────────────────────────────────────────────────────
 interface DbCourse {
   id: string;
   name: string;
@@ -28,7 +27,6 @@ interface DbCourse {
 
 interface DisplayCourse {
   id: string;
-  slug: string;
   title: string;
   category: string;
   level: string;
@@ -44,38 +42,11 @@ interface DisplayCourse {
   trailerUrl: string;
   fullVideoUrl: string;
   thumbnailUrl: string;
-  rating: number;
-  reviewCount: number;
-}
-
-function mapHardcoded(c: ReturnType<typeof hardcodedCourses[number]["valueOf"]>): DisplayCourse {
-  return {
-    id: c.id,
-    slug: c.slug,
-    title: c.title,
-    category: c.category,
-    level: c.level,
-    description: c.description,
-    longDescription: c.longDescription,
-    highlights: c.highlights,
-    curriculum: c.curriculum,
-    whoIsItFor: c.whoIsItFor,
-    instructor: c.instructor,
-    instructorBio: "",
-    duration: c.duration,
-    price: c.price,
-    trailerUrl: "",
-    fullVideoUrl: "",
-    thumbnailUrl: c.thumbnailUrl ?? "",
-    rating: c.rating,
-    reviewCount: c.reviewCount,
-  };
 }
 
 function mapDb(c: DbCourse): DisplayCourse {
   return {
     id: c.id,
-    slug: c.id,
     title: c.name,
     category: c.category,
     level: c.difficulty_level || "Intermediate",
@@ -84,19 +55,17 @@ function mapDb(c: DbCourse): DisplayCourse {
     highlights: Array.isArray(c.highlights) ? c.highlights : [],
     curriculum: Array.isArray(c.curriculum) ? c.curriculum : [],
     whoIsItFor: Array.isArray(c.who_is_it_for) ? c.who_is_it_for : [],
-    instructor: c.instructor_name || "InfoKB",
+    instructor: c.instructor_name || "",
     instructorBio: c.instructor_bio || "",
     duration: c.duration,
     price: Number(c.price) || 0,
     trailerUrl: c.trailer_url || "",
     fullVideoUrl: c.full_video_url || "",
     thumbnailUrl: c.thumbnail_url || "",
-    rating: 0,
-    reviewCount: 0,
   };
 }
 
-// ── Razorpay types ───────────────────────────────────────────────────────────
+// ── Razorpay types ────────────────────────────────────────────────────────────
 declare global {
   interface Window {
     Razorpay: new (opts: object) => { open(): void };
@@ -114,7 +83,7 @@ function loadRazorpay(): Promise<boolean> {
   });
 }
 
-// ── Trailer / full video player ──────────────────────────────────────────────
+// ── Video player ──────────────────────────────────────────────────────────────
 function VideoPlayer({ url, title, locked }: { url: string; title: string; locked?: boolean }) {
   const isYoutube = url.includes("youtube.com") || url.includes("youtu.be");
 
@@ -156,20 +125,14 @@ function VideoPlayer({ url, title, locked }: { url: string; title: string; locke
 
   return (
     <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black shadow-2xl">
-      <video
-        src={url}
-        controls
-        className="absolute inset-0 w-full h-full"
-        poster=""
-        preload="metadata"
-      >
+      <video src={url} controls className="absolute inset-0 w-full h-full" preload="metadata">
         Your browser does not support the video tag.
       </video>
     </div>
   );
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function CourseDetail() {
   const params = useParams<{ slug: string }>();
   const { user, session } = useAuth();
@@ -177,36 +140,41 @@ export default function CourseDetail() {
 
   const [course, setCourse] = useState<DisplayCourse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [openModule, setOpenModule] = useState<number | null>(0);
   const [enrolled, setEnrolled] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState("");
 
-  // Fetch course
+  // Fetch course from Supabase only
   useEffect(() => {
     async function load() {
       setLoading(true);
-      // First try hardcoded by slug
-      const hc = hardcodedCourses.find((c) => c.slug === params.slug);
-      if (hc) { setCourse(mapHardcoded(hc)); setLoading(false); return; }
+      setNotFound(false);
 
-      // Try DB by id (slug == id for DB courses)
-      if (supabase) {
-        const { data, error } = await supabase
-          .from("courses")
-          .select("*")
-          .eq("id", params.slug)
-          .single();
-        if (!error && data) { setCourse(mapDb(data as DbCourse)); setLoading(false); return; }
+      if (!supabase) {
+        setNotFound(true);
+        setLoading(false);
+        return;
       }
-      setCourse(null);
+
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("id", params.slug)
+        .single();
+
+      if (error || !data) {
+        setNotFound(true);
+      } else {
+        setCourse(mapDb(data as DbCourse));
+      }
       setLoading(false);
     }
     load();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [params.slug]);
 
-  // Set title
   useEffect(() => {
     if (course) document.title = `${course.title} | InfoKB`;
   }, [course]);
@@ -234,11 +202,9 @@ export default function CourseDetail() {
       const rzpKeyId = import.meta.env.RAZORPAY_KEY_ID as string;
 
       if (!rzpKeyId) {
-        // No Razorpay configured — free enroll
-        const token = session?.access_token;
         const res = await fetch("/api/enroll", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: user.id,
             user_email: user.email,
@@ -268,10 +234,12 @@ export default function CourseDetail() {
         theme: { color: "#005B99" },
         handler: async (response: { razorpay_payment_id: string }) => {
           try {
-            const token = session?.access_token;
             const res = await fetch("/api/enroll", {
               method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session?.access_token}`,
+              },
               body: JSON.stringify({
                 user_id: user.id,
                 user_email: user.email,
@@ -301,7 +269,7 @@ export default function CourseDetail() {
     }
   };
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
@@ -310,11 +278,11 @@ export default function CourseDetail() {
     );
   }
 
-  if (!course) {
+  if (notFound || !course) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center pt-20 text-center px-4">
         <h1 className="text-2xl font-bold text-foreground mb-4">Course Not Found</h1>
-        <p className="text-muted-foreground mb-6">The course you're looking for doesn't exist.</p>
+        <p className="text-muted-foreground mb-6">The course you're looking for doesn't exist or has been removed.</p>
         <Link href="/courses" className="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 transition-colors">
           Browse All Courses
         </Link>
@@ -335,11 +303,17 @@ export default function CourseDetail() {
             Back to Courses
           </Link>
           <div className="flex flex-wrap gap-3 mb-4">
-            <span className="px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold">{course.category}</span>
-            <span className="px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold">{course.level}</span>
+            {course.category && (
+              <span className="px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold">{course.category}</span>
+            )}
+            {course.level && (
+              <span className="px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold">{course.level}</span>
+            )}
           </div>
-          <motion.h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 max-w-3xl"
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.h1
+            className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 max-w-3xl"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          >
             {course.title}
           </motion.h1>
           <p className="text-white/70 text-base max-w-2xl mb-6">{course.description}</p>
@@ -349,10 +323,12 @@ export default function CourseDetail() {
                 <Clock className="h-4 w-4 text-[#23B33A]" />{course.duration}
               </div>
             )}
-            <div className="flex items-center gap-2 text-white/80 text-sm">
-              <BarChart2 className="h-4 w-4 text-[#23B33A]" />{course.level} Level
-            </div>
-            {course.instructor && course.instructor !== "InfoKB" && (
+            {course.level && (
+              <div className="flex items-center gap-2 text-white/80 text-sm">
+                <BarChart2 className="h-4 w-4 text-[#23B33A]" />{course.level} Level
+              </div>
+            )}
+            {course.instructor && (
               <div className="flex items-center gap-2 text-white/80 text-sm">
                 <User className="h-4 w-4 text-[#23B33A]" />{course.instructor}
               </div>
@@ -379,7 +355,7 @@ export default function CourseDetail() {
             {/* What you'll learn */}
             {course.highlights.length > 0 && (
               <motion.div className="bg-white rounded-2xl border border-border p-8"
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }}>
                 <h2 className="text-xl font-bold text-foreground mb-5">What You'll Learn</h2>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {course.highlights.map((h, i) => (
@@ -395,7 +371,7 @@ export default function CourseDetail() {
             {/* Curriculum */}
             {course.curriculum.length > 0 && (
               <motion.div className="bg-white rounded-2xl border border-border p-8"
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
                 <h2 className="text-xl font-bold text-foreground mb-5">Course Curriculum</h2>
                 <div className="space-y-3">
                   {course.curriculum.map((mod, i) => (
@@ -405,7 +381,9 @@ export default function CourseDetail() {
                         onClick={() => setOpenModule(openModule === i ? null : i)}
                       >
                         <span className="font-semibold text-foreground text-sm">{mod.module}</span>
-                        {openModule === i ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        {openModule === i
+                          ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       </button>
                       {openModule === i && (
                         <div className="border-t border-border px-5 py-4">
@@ -427,7 +405,7 @@ export default function CourseDetail() {
             {/* Who is it for */}
             {course.whoIsItFor.length > 0 && (
               <motion.div className="bg-white rounded-2xl border border-border p-8"
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
                 <h2 className="text-xl font-bold text-foreground mb-5">Who Is This For</h2>
                 <div className="flex flex-wrap gap-2">
                   {course.whoIsItFor.map((w, i) => (
@@ -438,17 +416,19 @@ export default function CourseDetail() {
             )}
 
             {/* Instructor */}
-            {course.instructor && course.instructor !== "InfoKB" && (
+            {course.instructor && (
               <motion.div className="bg-white rounded-2xl border border-border p-8"
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }}>
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
                 <h2 className="text-xl font-bold text-foreground mb-4">Your Instructor</h2>
                 <div className="flex items-start gap-4">
                   <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-xl font-bold text-primary">{course.instructor[0]}</span>
+                    <span className="text-xl font-bold text-primary">{course.instructor[0]?.toUpperCase()}</span>
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">{course.instructor}</p>
-                    {course.instructorBio && <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{course.instructorBio}</p>}
+                    {course.instructorBio && (
+                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{course.instructorBio}</p>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -456,17 +436,18 @@ export default function CourseDetail() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
-            <motion.div className="bg-white rounded-2xl border border-border overflow-hidden sticky top-24 shadow-lg"
-              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
-
-              {/* Video player */}
+          <div>
+            <motion.div
+              className="bg-white rounded-2xl border border-border overflow-hidden sticky top-24 shadow-lg"
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              {/* Video / thumbnail */}
               <div className="p-4 border-b border-border bg-gray-950">
                 {enrolled && course.fullVideoUrl ? (
                   <VideoPlayer url={course.fullVideoUrl} title={`${course.title} — Full Course`} />
                 ) : course.trailerUrl ? (
                   <div className="relative">
-                    <VideoPlayer url={course.trailerUrl} title={`${course.title} — Trailer`} />
+                    <VideoPlayer url={course.trailerUrl} title={`${course.title} — Preview`} />
                     {!enrolled && (
                       <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-md flex items-center gap-1">
                         <Play className="h-3 w-3" /> Preview
@@ -520,7 +501,9 @@ export default function CourseDetail() {
                       disabled={enrolling}
                       className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] disabled:opacity-60 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
                     >
-                      {enrolling ? <><Loader2 className="h-5 w-5 animate-spin" /> Processing…</> : `Enroll Now — ${formatPrice(course.price)}`}
+                      {enrolling
+                        ? <><Loader2 className="h-5 w-5 animate-spin" /> Processing…</>
+                        : `Enroll Now — ${formatPrice(course.price)}`}
                     </button>
                     {!user && (
                       <p className="text-xs text-center text-muted-foreground">
@@ -532,16 +515,15 @@ export default function CourseDetail() {
                     )}
                     <div className="pt-2 space-y-2 text-sm text-muted-foreground">
                       {course.duration && <div className="flex items-center gap-2"><Clock className="h-4 w-4" />{course.duration}</div>}
-                      <div className="flex items-center gap-2"><BarChart2 className="h-4 w-4" />{course.level} level</div>
-                      {course.instructor && course.instructor !== "InfoKB" && (
-                        <div className="flex items-center gap-2"><User className="h-4 w-4" />by {course.instructor}</div>
-                      )}
+                      {course.level && <div className="flex items-center gap-2"><BarChart2 className="h-4 w-4" />{course.level} level</div>}
+                      {course.instructor && <div className="flex items-center gap-2"><User className="h-4 w-4" />by {course.instructor}</div>}
                     </div>
                   </div>
                 )}
               </div>
             </motion.div>
           </div>
+
         </div>
       </div>
     </div>

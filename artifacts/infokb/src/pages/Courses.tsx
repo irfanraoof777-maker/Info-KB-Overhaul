@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CourseCard from "@/components/CourseCard";
-import { courses as hardcodedCourses, CATEGORIES, type Course, type Category } from "@/data/courses";
-import { supabase, SUPABASE_URL_VALUE, SUPABASE_KEY_VALUE } from "@/lib/supabase";
-import { useLocation } from "wouter";
+import type { Course, Category } from "@/data/courses";
+import { supabase } from "@/lib/supabase";
 
 // ── DB row shape from Supabase ────────────────────────────────────────────────
 interface DbCourse {
@@ -26,7 +25,6 @@ interface DbCourse {
   created_at: string;
 }
 
-// Rotate through a set of gradients for DB courses that have no thumbnail
 const DB_GRADIENTS = [
   { gradient: "linear-gradient(135deg, #0a192f 0%, #1a3a5c 50%, #0d2137 100%)", accent: "#0ea5e9" },
   { gradient: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)", accent: "#7c3aed" },
@@ -44,7 +42,6 @@ function mapDbCourse(c: DbCourse, index: number): Course {
     ? c.difficulty_level
     : "Intermediate") as Course["level"];
   const category = (c.category || "Cloud") as Exclude<Category, "All">;
-
   return {
     id: c.id,
     slug: c.id,
@@ -72,15 +69,15 @@ function mapDbCourse(c: DbCourse, index: number): Course {
 }
 
 export default function Courses() {
-  const [location] = useLocation();
   const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const initialQuery = params.get("q") ?? "";
 
   const [search, setSearch] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState<Category>("All");
-  const [courses, setCourses] = useState<Course[]>(hardcodedCourses);
-  const [categories, setCategories] = useState<Category[]>(CATEGORIES);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [categories, setCategories] = useState<Category[]>(["All"]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     document.title = "Courses | InfoKB";
@@ -88,48 +85,35 @@ export default function Courses() {
 
   useEffect(() => {
     async function fetchCourses() {
-      // ── Debug: log what credentials were baked in at build time ──────────
-      console.log("[Courses] Supabase URL present:", !!SUPABASE_URL_VALUE, "| value starts with:", SUPABASE_URL_VALUE?.slice(0, 30));
-      console.log("[Courses] Supabase key present:", !!SUPABASE_KEY_VALUE, "| key starts with:", SUPABASE_KEY_VALUE?.slice(0, 8));
+      setLoading(true);
+      setError("");
 
       if (!supabase) {
-        console.error("[Courses] Supabase client is null — credentials were missing at build time. Falling back to hardcoded courses.");
+        setError("Database connection is not configured.");
         setLoading(false);
         return;
       }
 
-      try {
-        console.log("[Courses] Fetching courses from Supabase...");
-        const { data, error } = await supabase
-          .from("courses")
-          .select("*")
-          .order("created_at", { ascending: false });
+      const { data, error: dbError } = await supabase
+        .from("courses")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-        if (error) {
-          console.error("[Courses] Supabase query error:", error.message, "| code:", error.code, "| details:", error.details);
-          console.log("[Courses] Falling back to hardcoded courses.");
-          setLoading(false);
-          return;
-        }
-
-        console.log("[Courses] Supabase returned", data?.length ?? 0, "courses.");
-
-        if (data && data.length > 0) {
-          const mapped = (data as DbCourse[]).map(mapDbCourse);
-          setCourses(mapped);
-
-          // Derive category list from DB data
-          const uniqueCats = Array.from(new Set(data.map((c: DbCourse) => c.category).filter(Boolean)));
-          setCategories(["All", ...uniqueCats] as Category[]);
-          console.log("[Courses] Categories found:", uniqueCats);
-        } else {
-          console.log("[Courses] DB courses table is empty — showing hardcoded courses.");
-        }
-      } catch (err) {
-        console.error("[Courses] Unexpected error during Supabase fetch:", err);
-      } finally {
+      if (dbError) {
+        setError("Failed to load courses. Please try again later.");
         setLoading(false);
+        return;
       }
+
+      const mapped = ((data ?? []) as DbCourse[]).map(mapDbCourse);
+      setCourses(mapped);
+
+      const uniqueCats = Array.from(
+        new Set((data ?? []).map((c: DbCourse) => c.category).filter(Boolean))
+      ) as Exclude<Category, "All">[];
+      setCategories(["All", ...uniqueCats]);
+
+      setLoading(false);
     }
 
     fetchCourses();
@@ -145,8 +129,6 @@ export default function Courses() {
       c.category.toLowerCase().includes(q);
     return matchesCategory && matchesSearch;
   });
-
-  const clearSearch = () => setSearch("");
 
   return (
     <div className="min-h-screen bg-[#f4f8fb] pt-20">
@@ -179,6 +161,18 @@ export default function Courses() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm">Loading courses…</p>
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-28 gap-3 text-center">
+            <p className="text-destructive text-sm">{error}</p>
+          </div>
+        ) : courses.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
+            <BookOpen className="h-14 w-14 text-muted-foreground/30" />
+            <h3 className="text-xl font-semibold text-foreground">No courses available yet</h3>
+            <p className="text-muted-foreground text-sm max-w-xs">
+              Check back soon — new courses will appear here once they're published.
+            </p>
+          </div>
         ) : (
           <>
             {/* Search + Filter */}
@@ -194,7 +188,7 @@ export default function Courses() {
                 />
                 {search && (
                   <button
-                    onClick={clearSearch}
+                    onClick={() => setSearch("")}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <X className="h-4 w-4" />
@@ -203,31 +197,33 @@ export default function Courses() {
               </div>
 
               {/* Category Pills */}
-              <div className="flex flex-wrap gap-2">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                      activeCategory === cat
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-white text-muted-foreground border border-border hover:border-primary hover:text-primary"
-                    }`}
-                  >
-                    {cat}
-                    {cat === "All" && (
-                      <span className="ml-1.5 text-xs opacity-70">({courses.length})</span>
-                    )}
-                  </button>
-                ))}
-              </div>
+              {categories.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                        activeCategory === cat
+                          ? "bg-primary text-white shadow-sm"
+                          : "bg-white text-muted-foreground border border-border hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {cat}
+                      {cat === "All" && (
+                        <span className="ml-1.5 text-xs opacity-70">({courses.length})</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Results count */}
             <div className="flex items-center justify-between mb-6">
               <p className="text-muted-foreground text-sm">
                 {filtered.length === courses.length
-                  ? `Showing all ${filtered.length} courses`
+                  ? `Showing all ${filtered.length} course${filtered.length !== 1 ? "s" : ""}`
                   : `Showing ${filtered.length} of ${courses.length} courses`}
               </p>
               {(search || activeCategory !== "All") && (

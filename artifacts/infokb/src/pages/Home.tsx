@@ -1,9 +1,70 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Search, ArrowRight, CheckCircle, Star, Users, BookOpen, Award, Clock } from "lucide-react";
+import { Search, ArrowRight, CheckCircle, Star, Users, BookOpen, Award, Clock, Loader2 } from "lucide-react";
 import CourseCard from "@/components/CourseCard";
-import { courses, testimonials } from "@/data/courses";
+import { testimonials } from "@/data/courses";
+import type { Course, Category } from "@/data/courses";
+import { supabase } from "@/lib/supabase";
+
+// ── DB row shape ──────────────────────────────────────────────────────────────
+interface DbCourse {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  description: string;
+  long_description: string;
+  highlights: string[];
+  curriculum: { module: string; topics: string[] }[];
+  who_is_it_for: string[];
+  instructor_name: string;
+  difficulty_level: string;
+  duration: string;
+  trailer_url: string;
+  full_video_url: string;
+  thumbnail_url: string;
+  created_at: string;
+}
+
+const DB_GRADIENTS = [
+  { gradient: "linear-gradient(135deg, #0a192f 0%, #1a3a5c 50%, #0d2137 100%)", accent: "#0ea5e9" },
+  { gradient: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)", accent: "#7c3aed" },
+  { gradient: "linear-gradient(135deg, #001219 0%, #005f73 50%, #0a9396 100%)", accent: "#0d9488" },
+  { gradient: "linear-gradient(135deg, #03045e 0%, #0077b6 50%, #00b4d8 100%)", accent: "#06b6d4" },
+  { gradient: "linear-gradient(135deg, #134e4a 0%, #0f766e 50%, #14b8a6 100%)", accent: "#14b8a6" },
+  { gradient: "linear-gradient(135deg, #042f2e 0%, #065f46 50%, #047857 100%)", accent: "#34d399" },
+];
+
+function mapDbCourse(c: DbCourse, index: number): Course {
+  const { gradient, accent } = DB_GRADIENTS[index % DB_GRADIENTS.length];
+  const level = (["Beginner", "Intermediate", "Advanced", "Expert"].includes(c.difficulty_level)
+    ? c.difficulty_level : "Intermediate") as Course["level"];
+  return {
+    id: c.id,
+    slug: c.id,
+    title: c.name,
+    category: (c.category || "Cloud") as Exclude<Category, "All">,
+    duration: c.duration || "",
+    level,
+    description: c.description || "",
+    longDescription: c.long_description || c.description || "",
+    highlights: Array.isArray(c.highlights) ? c.highlights : [],
+    curriculum: Array.isArray(c.curriculum) ? c.curriculum : [],
+    whoIsItFor: Array.isArray(c.who_is_it_for) ? c.who_is_it_for : [],
+    instructor: c.instructor_name || "InfoKB",
+    rating: 0,
+    reviewCount: 0,
+    students: 0,
+    modules: Array.isArray(c.curriculum) ? c.curriculum.length : 0,
+    price: Number(c.price) || 0,
+    originalPrice: Number(c.price) || 0,
+    onSale: false,
+    imageGradient: gradient,
+    imageAccent: accent,
+    thumbnailUrl: c.thumbnail_url || undefined,
+  };
+}
 
 const stats = [
   { icon: Award, value: "10+", label: "Years Experience" },
@@ -18,22 +79,31 @@ const steps = [
   { number: "03", title: "Learn & Certify", description: "Train with expert instructors, get hands-on lab access, and walk away with an industry-recognized certification." },
 ];
 
-const categoryFeatured = ["Cloud", "DevOps", "AI & ML", "Agile"];
-
 export default function Home() {
   const [search, setSearch] = useState("");
   const [, navigate] = useLocation();
+  const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (search.trim()) {
-      navigate(`/courses?q=${encodeURIComponent(search.trim())}`);
-    } else {
-      navigate("/courses");
-    }
+    navigate(search.trim() ? `/courses?q=${encodeURIComponent(search.trim())}` : "/courses");
   };
 
-  const featuredCourses = courses.filter((c) => categoryFeatured.includes(c.category)).slice(0, 6);
+  useEffect(() => {
+    if (!supabase) { setCoursesLoading(false); return; }
+    supabase
+      .from("courses")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(6)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setFeaturedCourses((data as DbCourse[]).map(mapDbCourse));
+        }
+        setCoursesLoading(false);
+      });
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -176,21 +246,39 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-            {featuredCourses.map((course, i) => (
-              <CourseCard key={course.id} course={course} index={i} />
-            ))}
-          </div>
-
-          <div className="text-center">
-            <Link
-              href="/courses"
-              className="inline-flex items-center gap-2 px-8 py-3.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors"
-            >
-              View All 15 Courses
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          {coursesLoading ? (
+            <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-sm">Loading courses…</span>
+            </div>
+          ) : featuredCourses.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                {featuredCourses.map((course, i) => (
+                  <CourseCard key={course.id} course={course} index={i} />
+                ))}
+              </div>
+              <div className="text-center">
+                <Link
+                  href="/courses"
+                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+                >
+                  View All Courses
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-10">
+              <Link
+                href="/courses"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+              >
+                Browse Courses
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -249,31 +337,7 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {testimonials.slice(0, 3).map((t, i) => (
-              <motion.div
-                key={t.name}
-                className="glass rounded-2xl p-6"
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-              >
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: t.rating }).map((_, j) => (
-                    <Star key={j} className="h-4 w-4 fill-[#23B33A] text-[#23B33A]" />
-                  ))}
-                </div>
-                <p className="text-white/75 text-sm leading-relaxed mb-5">"{t.text}"</p>
-                <div>
-                  <div className="font-semibold text-white text-sm">{t.name}</div>
-                  <div className="text-white/50 text-xs mt-0.5">{t.role}</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {testimonials.slice(3).map((t, i) => (
+            {testimonials.map((t, i) => (
               <motion.div
                 key={t.name}
                 className="glass rounded-2xl p-6"
@@ -298,7 +362,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Newsletter / CTA */}
+      {/* CTA */}
       <section className="py-16 bg-gradient-to-r from-[#005B99] to-[#0077cc]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
