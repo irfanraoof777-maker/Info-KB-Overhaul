@@ -63,17 +63,9 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-18">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <img
-              src="http://infokb.com/wp-content/uploads/2024/05/logo.png"
+              src="/logo.jpg"
               alt="InfoKB"
-              className="h-8 w-auto"
-              onError={(e) => {
-                const t = e.currentTarget;
-                t.style.display = "none";
-                const span = document.createElement("span");
-                span.className = "text-xl font-bold text-primary";
-                span.textContent = "infoKB";
-                t.parentNode?.appendChild(span);
-              }}
+              className="h-9 w-auto rounded-md"
             />
           </Link>
 

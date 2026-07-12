@@ -455,17 +455,12 @@ export default function CourseDetail() {
                     )}
                   </div>
                 ) : course.thumbnailUrl ? (
-                  <div className="relative w-full aspect-video rounded-xl overflow-hidden">
+                  <div className="w-full aspect-video rounded-xl overflow-hidden">
                     <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                      <div className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                        <Play className="h-7 w-7 text-white fill-white ml-1" />
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   <div className="w-full aspect-video rounded-xl bg-gray-800 flex items-center justify-center">
-                    <Play className="h-10 w-10 text-white/30" />
+                    <span className="text-white/30 text-sm">No preview available</span>
                   </div>
                 )}
               </div>
