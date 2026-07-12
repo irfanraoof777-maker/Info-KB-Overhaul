@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { CheckCircle, Award, Users, BookOpen, TrendingUp, ArrowRight } from "lucide-react";
@@ -10,12 +10,15 @@ const values = [
   { icon: TrendingUp, title: "Career Outcomes", description: "95% of our students report career advancement within 6 months of completing their certification training at InfoKB." },
 ];
 
-const teamMembers = [
-  { name: "Ravi Kumar", title: "Lead Cloud Trainer", certs: "AWS SA, DevOps Professional, Azure Expert", experience: "12 years" },
-  { name: "Anitha Reddy", title: "DevOps & Kubernetes Specialist", certs: "CKA, CKAD, AWS DevOps, Docker Certified", experience: "9 years" },
-  { name: "Suresh Menon", title: "Nutanix & Infrastructure Expert", certs: "NCP, NCSA, VCP, RHCE", experience: "14 years" },
-  { name: "Deepa Sharma", title: "Agile & Project Management Coach", certs: "PMP, CSM, SAFe Agilist, ITIL", experience: "11 years" },
-];
+interface Trainer {
+  id: string;
+  name: string;
+  title: string;
+  certs: string;
+  experience: string;
+  photo_url: string;
+  sort_order: number;
+}
 
 const milestones = [
   { year: "2013", event: "InfoKB founded in Hyderabad with a focus on enterprise IT training" },
@@ -27,8 +30,14 @@ const milestones = [
 ];
 
 export default function About() {
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
+
   useEffect(() => {
     document.title = "About Us | InfoKB";
+    fetch("/api/trainers")
+      .then((r) => r.json())
+      .then((d: { trainers?: Trainer[] }) => { if (d.trainers) setTrainers(d.trainers); })
+      .catch(() => {});
   }, []);
 
   return (
@@ -174,34 +183,46 @@ export default function About() {
               Our trainers are active practitioners — not just teachers. Every instructor holds the certifications they teach.
             </p>
           </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {teamMembers.map((member, i) => (
-              <motion.div
-                key={member.name}
-                className="bg-[#f4f8fb] rounded-2xl border border-border p-6"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.08 }}
-              >
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-[#23B33A] flex items-center justify-center text-white font-bold text-lg mb-4">
-                  {member.name.split(" ").map((n) => n[0]).join("")}
-                </div>
-                <h3 className="font-bold text-foreground mb-1">{member.name}</h3>
-                <p className="text-[#23B33A] text-xs font-semibold mb-3">{member.title}</p>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-xs text-muted-foreground">{member.certs}</span>
+          {trainers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {trainers.map((member, i) => (
+                <motion.div
+                  key={member.id}
+                  className="bg-[#f4f8fb] rounded-2xl border border-border p-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.08 }}
+                >
+                  {member.photo_url ? (
+                    <img src={member.photo_url} alt={member.name} className="w-14 h-14 rounded-xl object-cover mb-4" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-[#23B33A] flex items-center justify-center text-white font-bold text-lg mb-4">
+                      {member.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                    </div>
+                  )}
+                  <h3 className="font-bold text-foreground mb-1">{member.name}</h3>
+                  <p className="text-[#23B33A] text-xs font-semibold mb-3">{member.title}</p>
+                  <div className="space-y-2">
+                    {member.certs && (
+                      <div className="flex gap-2">
+                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        <span className="text-xs text-muted-foreground">{member.certs}</span>
+                      </div>
+                    )}
+                    {member.experience && (
+                      <div className="flex gap-2">
+                        <Award className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        <span className="text-xs text-muted-foreground">{member.experience} experience</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Award className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-xs text-muted-foreground">{member.experience} experience</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground">Our expert trainers will be listed here soon.</p>
+          )}
         </div>
       </section>
 

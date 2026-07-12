@@ -75,6 +75,17 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
   course_id   uuid REFERENCES public.courses(id) ON DELETE CASCADE,
   enrolled_at timestamptz DEFAULT now(),
   UNIQUE(user_id, course_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.trainers (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       text NOT NULL DEFAULT '',
+  title      text NOT NULL DEFAULT '',
+  certs      text NOT NULL DEFAULT '',
+  experience text NOT NULL DEFAULT '',
+  photo_url  text NOT NULL DEFAULT '',
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz DEFAULT now()
 );`;
 
 // ── Verify credentials (POST with JSON body — no Supabase call) ──────
@@ -261,6 +272,60 @@ router.delete("/users/:id", adminAuth, async (req, res) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     res.status(500).json({ error: msg });
+  }
+});
+
+// ── Trainers ──────────────────────────────────────────────────
+router.get("/trainers", adminAuth, async (_req, res) => {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("trainers")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    res.json({ trainers: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+  }
+});
+
+router.post("/trainers", adminAuth, async (req, res) => {
+  try {
+    const supabase = getSupabaseAdmin();
+    const body = req.body as Record<string, unknown>;
+    const { data, error } = await supabase.from("trainers").insert([body]).select().single();
+    if (error) throw error;
+    res.json({ trainer: data });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+  }
+});
+
+router.put("/trainers/:id", adminAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const supabase = getSupabaseAdmin();
+    const body = req.body as Record<string, unknown>;
+    delete body.id;
+    delete body.created_at;
+    const { data, error } = await supabase.from("trainers").update(body).eq("id", id).select().single();
+    if (error) throw error;
+    res.json({ trainer: data });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+  }
+});
+
+router.delete("/trainers/:id", adminAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from("trainers").delete().eq("id", id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
   }
 });
 

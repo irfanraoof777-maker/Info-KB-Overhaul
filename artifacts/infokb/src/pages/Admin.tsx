@@ -19,7 +19,7 @@ import {
 import {
   BookOpen, Users, ShoppingCart, LogOut, Plus, Pencil, Trash2,
   RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
-  Copy, Eye, EyeOff, Upload, X, Loader2, PlusCircle,
+  Copy, Eye, EyeOff, Upload, X, Loader2, PlusCircle, GraduationCap,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -65,7 +65,27 @@ interface Order {
   created_at: string;
 }
 
-type Tab = "courses" | "students" | "orders";
+interface Trainer {
+  id: string;
+  name: string;
+  title: string;
+  certs: string;
+  experience: string;
+  photo_url: string;
+  sort_order: number;
+  created_at: string;
+}
+
+type Tab = "courses" | "students" | "orders" | "trainers";
+
+const BLANK_TRAINER: Omit<Trainer, "id" | "created_at"> = {
+  name: "",
+  title: "",
+  certs: "",
+  experience: "",
+  photo_url: "",
+  sort_order: 0,
+};
 
 const BLANK_COURSE: Omit<Course, "id" | "created_at"> = {
   name: "",
@@ -937,6 +957,223 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
   );
 }
 
+// ── Trainer Modal ─────────────────────────────────────────────────────────────
+
+interface TrainerModalProps {
+  open: boolean;
+  onClose: () => void;
+  initial: Trainer | null;
+  auth: { u: string; p: string };
+  onSaved: () => void;
+}
+
+function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalProps) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState<Omit<Trainer, "id" | "created_at">>(BLANK_TRAINER);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setForm(initial
+        ? { name: initial.name, title: initial.title, certs: initial.certs, experience: initial.experience, photo_url: initial.photo_url, sort_order: initial.sort_order }
+        : BLANK_TRAINER);
+      setError("");
+    }
+  }, [open, initial]);
+
+  const set = <K extends keyof Omit<Trainer, "id" | "created_at">>(k: K, v: Omit<Trainer, "id" | "created_at">[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const url = isEdit ? `/api/admin/trainers/${initial!.id}` : "/api/admin/trainers";
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit Trainer" : "Add Trainer"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-5 py-2">
+          <div className="space-y-1.5">
+            <Label>Name *</Label>
+            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Ravi Kumar" required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Title / Role *</Label>
+            <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Lead Cloud Trainer" required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Certifications</Label>
+            <textarea
+              className="w-full min-h-[70px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              value={form.certs}
+              onChange={(e) => set("certs", e.target.value)}
+              placeholder="e.g. AWS SA, DevOps Professional, Azure Expert"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Experience</Label>
+              <Input value={form.experience} onChange={(e) => set("experience", e.target.value)} placeholder="e.g. 12 years" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Display Order</Label>
+              <Input type="number" min="0" value={form.sort_order} onChange={(e) => set("sort_order", parseInt(e.target.value) || 0)} />
+            </div>
+          </div>
+
+          <UploadButton
+            label="Profile Photo"
+            accept="image/*"
+            currentUrl={form.photo_url}
+            onUploaded={(url) => set("photo_url", url)}
+            auth={auth}
+          />
+
+          {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : isEdit ? "Save Changes" : "Add Trainer"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Trainers Tab ──────────────────────────────────────────────────────────────
+
+function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Trainer | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/trainers", {
+        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
+      });
+      const data = await res.json() as { trainers?: Trainer[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to load");
+      setTrainers(data.trainers ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  }, [auth]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this trainer?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/admin/trainers/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
+      });
+      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? "Delete failed"); }
+      setTrainers((prev) => prev.filter((t) => t.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Trainers</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{trainers.length} trainer{trainers.length !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />Refresh
+          </Button>
+          <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1.5" />Add Trainer
+          </Button>
+        </div>
+      </div>
+
+      {error && <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>}
+
+      {loading ? (
+        <div className="text-center py-16 text-muted-foreground animate-pulse">Loading trainers…</div>
+      ) : trainers.length === 0 ? (
+        <div className="text-center py-16">
+          <GraduationCap className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+          <p className="text-muted-foreground">No trainers yet. Add your first trainer.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {trainers.map((t) => (
+            <div key={t.id} className="bg-white dark:bg-card rounded-2xl border border-border p-5 flex flex-col gap-3">
+              <div className="flex items-start gap-4">
+                {t.photo_url ? (
+                  <img src={t.photo_url} alt={t.name} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-[#23B33A] flex items-center justify-center text-white font-bold text-lg shrink-0">
+                    {t.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground leading-tight truncate">{t.name}</p>
+                  <p className="text-xs text-[#23B33A] font-medium mt-0.5 truncate">{t.title}</p>
+                  {t.experience && <p className="text-xs text-muted-foreground mt-1">{t.experience} experience</p>}
+                </div>
+              </div>
+              {t.certs && <p className="text-xs text-muted-foreground line-clamp-2">{t.certs}</p>}
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditing(t); setModalOpen(true); }}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  disabled={deletingId === t.id} onClick={() => handleDelete(t.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <TrainerModal open={modalOpen} onClose={() => setModalOpen(false)} initial={editing} auth={auth} onSaved={load} />
+    </div>
+  );
+}
+
 // ── Main Admin Component ──────────────────────────────────────────────────────
 
 export default function Admin() {
@@ -1015,6 +1252,7 @@ export default function Admin() {
     { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> },
     { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> },
     { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
+    { id: "trainers", label: "Trainers", icon: <GraduationCap className="h-4 w-4" /> },
   ];
 
   return (
@@ -1046,6 +1284,7 @@ export default function Admin() {
         {tab === "courses" && <CoursesTab auth={auth} />}
         {tab === "students" && <StudentsTab auth={auth} />}
         {tab === "orders" && <OrdersTab auth={auth} />}
+        {tab === "trainers" && <TrainersTab auth={auth} />}
       </div>
     </div>
   );
