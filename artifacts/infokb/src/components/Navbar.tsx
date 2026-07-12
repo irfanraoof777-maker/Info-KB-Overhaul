@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Phone, LogIn, UserPlus, LayoutDashboard, LogOut, Sun, Moon } from "lucide-react";
+import { Menu, X, Phone, LogIn, UserPlus, LayoutDashboard, LogOut, Sun, Moon, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -167,6 +167,22 @@ export default function Navbar() {
               </>
             )}
 
+            {/* Admin Panel button — desktop */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`hidden md:flex items-center gap-1.5 ${
+                !solidBg
+                  ? "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-foreground/50 hover:text-foreground hover:bg-muted"
+              }`}
+              onClick={() => navigate("/admin")}
+              aria-label="Admin Panel"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Admin
+            </Button>
+
             <button
               className={`md:hidden p-2 rounded-lg transition-colors ${
                 solidBg
@@ -250,6 +266,19 @@ export default function Navbar() {
                   )}
                 </div>
               )}
+
+              {/* Admin Panel link — mobile */}
+              <Link
+                href="/admin"
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                  location === "/admin"
+                    ? "text-primary bg-primary/8 font-semibold"
+                    : "text-foreground/70 hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Admin Panel
+              </Link>
 
               {/* Dark mode toggle in mobile menu */}
               <button
