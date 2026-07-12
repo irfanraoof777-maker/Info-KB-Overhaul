@@ -166,66 +166,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* Team */}
-      <section className="py-16 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="text-[#23B33A] font-semibold text-sm uppercase tracking-wider">Expert Trainers</span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground mt-2">
-              Learn from the Best
-            </h2>
-            <p className="text-muted-foreground mt-4 max-w-xl mx-auto text-base">
-              Our trainers are active practitioners — not just teachers. Every instructor holds the certifications they teach.
-            </p>
-          </motion.div>
-          {trainers.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {trainers.map((member, i) => (
-                <motion.div
-                  key={member.id}
-                  className="bg-[#f4f8fb] rounded-2xl border border-border p-6"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: i * 0.08 }}
-                >
-                  {member.photo_url ? (
-                    <img src={member.photo_url} alt={member.name} className="w-14 h-14 rounded-xl object-cover mb-4" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-[#23B33A] flex items-center justify-center text-white font-bold text-lg mb-4">
-                      {member.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                    </div>
-                  )}
-                  <h3 className="font-bold text-foreground mb-1">{member.name}</h3>
-                  <p className="text-[#23B33A] text-xs font-semibold mb-3">{member.title}</p>
-                  <div className="space-y-2">
-                    {member.certs && (
-                      <div className="flex gap-2">
-                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-xs text-muted-foreground">{member.certs}</span>
-                      </div>
-                    )}
-                    {member.experience && (
-                      <div className="flex gap-2">
-                        <Award className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-xs text-muted-foreground">{member.experience} experience</span>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground">Our expert trainers will be listed here soon.</p>
-          )}
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="py-14 bg-gradient-to-r from-[#005B99] to-[#0077cc]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

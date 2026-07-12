@@ -174,7 +174,6 @@ function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadBut
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset input immediately so the same file can be re-chosen if needed
     if (inputRef.current) inputRef.current.value = "";
 
     setUploading(true);
@@ -182,48 +181,22 @@ function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadBut
     setError("");
 
     try {
-      // Step 1 — ask the server for a presigned PUT URL
-      const sigRes = await fetch("/api/admin/upload", {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/admin/upload", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: makeBasicAuth(auth.u, auth.p),
-        },
-        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
+        body: formData,
       });
-      const sigData = await sigRes.json() as { uploadUrl?: string; publicUrl?: string; error?: string };
-      if (!sigRes.ok || !sigData.uploadUrl || !sigData.publicUrl) {
-        throw new Error(sigData.error ?? "Could not get upload URL.");
+
+      const data = await res.json() as { publicUrl?: string; error?: string };
+      if (!res.ok || !data.publicUrl) {
+        throw new Error(data.error ?? "Upload failed.");
       }
 
-      // Step 2 — PUT the file directly to R2 using the presigned URL,
-      // tracking progress via XMLHttpRequest
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", sigData.uploadUrl!);
-        xhr.setRequestHeader("Content-Type", file.type);
-
-        xhr.upload.onprogress = (ev) => {
-          if (ev.lengthComputable) {
-            setProgress(Math.round((ev.loaded / ev.total) * 100));
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Upload failed: HTTP ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error("Network error during upload."));
-        xhr.onabort = () => reject(new Error("Upload cancelled."));
-
-        xhr.send(file);
-      });
-
-      onUploaded(sigData.publicUrl!);
+      setProgress(100);
+      onUploaded(data.publicUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {

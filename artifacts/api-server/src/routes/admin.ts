@@ -7,8 +7,10 @@ import {
 } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
+import multer from "multer";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router: IRouter = Router();
 
@@ -278,27 +280,29 @@ router.delete("/users/:id", adminAuth, async (req, res) => {
   }
 });
 
-// ── R2 Presigned Upload ───────────────────────────────────────
-router.post("/upload", adminAuth, async (req, res) => {
+// ── R2 Upload (server-side proxy — avoids browser CORS on R2) ────────────────
+router.post("/upload", adminAuth, (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) { res.status(400).json({ error: err.message }); return; }
+    next();
+  });
+}, async (req, res) => {
   try {
+    const file = (req as Request & { file?: Express.Multer.File }).file;
+    if (!file) { res.status(400).json({ error: "No file provided." }); return; }
+
     const endpoint = process.env["CLOUDFLARE_R2_ENDPOINT"];
     const accessKey = process.env["CLOUDFLARE_R2_ACCESS_KEY"];
     const secretKey = process.env["CLOUDFLARE_R2_SECRET_KEY"];
     const bucket = process.env["CLOUDFLARE_R2_BUCKET"];
-    const publicUrl = process.env["CLOUDFLARE_R2_PUBLIC_URL"];
+    const publicUrlBase = process.env["CLOUDFLARE_R2_PUBLIC_URL"];
 
-    if (!endpoint || !accessKey || !secretKey || !bucket || !publicUrl) {
+    if (!endpoint || !accessKey || !secretKey || !bucket || !publicUrlBase) {
       res.status(500).json({ error: "R2 storage is not configured on the server." });
       return;
     }
 
-    const { fileName, fileType } = req.body as { fileName?: string; fileType?: string };
-    if (!fileName || !fileType) {
-      res.status(400).json({ error: "fileName and fileType are required." });
-      return;
-    }
-
-    const ext = fileName.split(".").pop() ?? "bin";
+    const ext = (file.originalname.split(".").pop() ?? "bin").toLowerCase();
     const key = `uploads/${randomUUID()}.${ext}`;
 
     const client = new S3Client({
@@ -307,16 +311,15 @@ router.post("/upload", adminAuth, async (req, res) => {
       credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
     });
 
-    const command = new PutObjectCommand({
+    await client.send(new PutObjectCommand({
       Bucket: bucket,
       Key: key,
-      ContentType: fileType,
-    });
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    }));
 
-    const uploadUrl = await getSignedUrl(client, command, { expiresIn: 300 });
-    const filePublicUrl = `${publicUrl.replace(/\/$/, "")}/${key}`;
-
-    res.json({ uploadUrl, publicUrl: filePublicUrl });
+    const publicUrl = `${publicUrlBase.replace(/\/$/, "")}/${key}`;
+    res.json({ publicUrl });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Unknown error" });
   }
