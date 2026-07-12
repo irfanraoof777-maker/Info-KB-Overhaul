@@ -63,9 +63,9 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-18">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <img
-              src="/logo.png"
+              src="/logo.jpg"
               alt="InfoKB"
-              className="w-48 h-auto"
+              className="h-14 w-auto"
             />
           </Link>
 
