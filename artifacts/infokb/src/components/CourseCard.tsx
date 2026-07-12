@@ -152,26 +152,18 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
         )}
 
         <div className="border-t border-border pt-4 mt-auto">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl font-extrabold text-foreground">{formatPrice(course.price)}</span>
-              {course.onSale && course.originalPrice > course.price && (
-                <span className="text-sm text-muted-foreground line-through">{formatPrice(course.originalPrice)}</span>
-              )}
+          {(course.modules > 0 || course.students > 0) && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+              {course.modules > 0 && <span className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" />{course.modules}</span>}
+              {course.students > 0 && <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{course.students.toLocaleString()}</span>}
             </div>
-            {(course.modules > 0 || course.students > 0) && (
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {course.modules > 0 && <span className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" />{course.modules}</span>}
-                {course.students > 0 && <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{course.students.toLocaleString()}</span>}
-              </div>
-            )}
-          </div>
+          )}
 
           <button
             className="w-full py-2.5 bg-[#23B33A] hover:bg-[#1ca033] text-white text-sm font-semibold rounded-xl text-center transition-colors"
             onClick={(e) => { e.stopPropagation(); navigate(`/courses/${course.slug}`); }}
           >
-            Enroll Now
+            Enquire Now
           </button>
         </div>
       </div>

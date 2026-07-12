@@ -470,56 +470,23 @@ export default function CourseDetail() {
                 )}
               </div>
 
-              {/* Price + CTA */}
+              {/* CTA */}
               <div className="p-6">
-                <div className="mb-5">
-                  <span className="text-3xl font-extrabold text-foreground">{formatPrice(course.price)}</span>
+                <div className="space-y-3">
+                  <a
+                    href={`https://wa.me/919652429090?text=I'm interested in the course: ${encodeURIComponent(course.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
+                  >
+                    Enquire Now
+                  </a>
+                  <div className="pt-2 space-y-2 text-sm text-muted-foreground">
+                    {course.duration && <div className="flex items-center gap-2"><Clock className="h-4 w-4" />{course.duration}</div>}
+                    {course.level && <div className="flex items-center gap-2"><BarChart2 className="h-4 w-4" />{course.level} level</div>}
+                    {course.instructor && <div className="flex items-center gap-2"><User className="h-4 w-4" />by {course.instructor}</div>}
+                  </div>
                 </div>
-
-                {enrolled ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-[#23B33A] font-semibold text-sm">
-                      <CheckCircle className="h-5 w-5" /> You're enrolled in this course
-                    </div>
-                    {course.fullVideoUrl && (
-                      <button
-                        onClick={() => document.querySelector(".aspect-video")?.scrollIntoView({ behavior: "smooth" })}
-                        className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
-                      >
-                        <Play className="h-5 w-5 fill-white" /> Watch Course
-                      </button>
-                    )}
-                    <Link href="/dashboard"
-                      className="block text-center w-full py-2.5 border border-border hover:border-primary hover:text-primary text-muted-foreground rounded-xl transition-colors text-sm font-medium">
-                      Go to Dashboard
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <button
-                      onClick={handleEnroll}
-                      disabled={enrolling}
-                      className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] disabled:opacity-60 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
-                    >
-                      {enrolling
-                        ? <><Loader2 className="h-5 w-5 animate-spin" /> Processing…</>
-                        : `Enroll Now — ${formatPrice(course.price)}`}
-                    </button>
-                    {!user && (
-                      <p className="text-xs text-center text-muted-foreground">
-                        <Link href="/login" className="text-primary hover:underline">Sign in</Link> to enroll
-                      </p>
-                    )}
-                    {enrollError && (
-                      <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">{enrollError}</p>
-                    )}
-                    <div className="pt-2 space-y-2 text-sm text-muted-foreground">
-                      {course.duration && <div className="flex items-center gap-2"><Clock className="h-4 w-4" />{course.duration}</div>}
-                      {course.level && <div className="flex items-center gap-2"><BarChart2 className="h-4 w-4" />{course.level} level</div>}
-                      {course.instructor && <div className="flex items-center gap-2"><User className="h-4 w-4" />by {course.instructor}</div>}
-                    </div>
-                  </div>
-                )}
               </div>
             </motion.div>
           </div>

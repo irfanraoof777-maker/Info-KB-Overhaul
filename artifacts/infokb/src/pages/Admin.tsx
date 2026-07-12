@@ -469,12 +469,6 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
             </div>
 
             <div className="space-y-1.5">
-              <Label>Price (₹)</Label>
-              <Input type="number" min="0" step="0.01" value={form.price}
-                onChange={(e) => set("price", parseFloat(e.target.value) || 0)} placeholder="0" />
-            </div>
-
-            <div className="space-y-1.5">
               <Label>Difficulty Level</Label>
               <Select value={form.difficulty_level} onValueChange={(v) => set("difficulty_level", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -490,17 +484,6 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
             </div>
           </div>
 
-          {/* ── Description ── */}
-          <div className="space-y-1.5">
-            <Label>Short Description</Label>
-            <textarea
-              className="w-full min-h-[70px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder="One-line course description shown on cards…"
-            />
-          </div>
-
           <div className="space-y-1.5">
             <Label>About This Course</Label>
             <textarea
@@ -508,6 +491,16 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
               value={form.long_description}
               onChange={(e) => set("long_description", e.target.value)}
               placeholder="Detailed course description shown on the course detail page…"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Prerequisites</Label>
+            <textarea
+              className="w-full min-h-[70px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="e.g. Basic knowledge of Linux, Networking fundamentals…"
             />
           </div>
 
@@ -577,23 +570,6 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
               )}
             </div>
 
-            {/* Trailer Video */}
-            <UploadButton
-              label="Trailer Video"
-              accept="video/*"
-              currentUrl={form.trailer_url}
-              onUploaded={(url) => set("trailer_url", url)}
-              auth={auth}
-            />
-
-            {/* Full Course Video */}
-            <UploadButton
-              label="Full Course Video"
-              accept="video/*"
-              currentUrl={form.full_video_url}
-              onUploaded={(url) => set("full_video_url", url)}
-              auth={auth}
-            />
           </div>
 
           {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
@@ -723,9 +699,6 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">{c.difficulty_level || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{c.duration || "—"}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">
-                      {c.price > 0 ? `₹${Number(c.price).toLocaleString("en-IN")}` : "Free"}
-                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
@@ -846,9 +819,6 @@ function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
                             <div key={i} className="flex items-center gap-2 bg-white dark:bg-card rounded-lg px-3 py-1.5 border border-border text-xs">
                               <BookOpen className="h-3 w-3 text-primary shrink-0" />
                               <span className="font-medium">{e.course?.name ?? "Unknown"}</span>
-                              {e.course?.price != null && (
-                                <span className="text-muted-foreground">₹{Number(e.course.price).toLocaleString("en-IN")}</span>
-                              )}
                             </div>
                           ))}
                         </div>
