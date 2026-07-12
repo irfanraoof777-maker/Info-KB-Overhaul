@@ -55,7 +55,7 @@ export default function Signup() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 pt-20">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 border border-border text-center">
+        <div className="w-full max-w-md bg-card rounded-2xl shadow-lg p-8 border border-border text-center">
           <div className="text-4xl mb-4">📧</div>
           <h1 className="text-2xl font-bold text-foreground mb-2">Check your email</h1>
           <p className="text-muted-foreground text-sm">
@@ -73,7 +73,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 pt-20">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 border border-border">
+      <div className="w-full max-w-md bg-card rounded-2xl shadow-lg p-8 border border-border">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-foreground">Create an account</h1>
           <p className="text-sm text-muted-foreground mt-1">

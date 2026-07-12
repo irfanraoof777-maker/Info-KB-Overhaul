@@ -55,7 +55,7 @@ export default function About() {
       </div>
 
       {/* Mission */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <motion.div
@@ -138,7 +138,7 @@ export default function About() {
             {values.map((v, i) => (
               <motion.div
                 key={v.title}
-                className="bg-white rounded-2xl border border-card-border p-7 flex gap-5"
+                className="bg-card rounded-2xl border border-card-border p-7 flex gap-5"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -158,7 +158,7 @@ export default function About() {
       </section>
 
       {/* Team */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12"

@@ -60,7 +60,7 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.4, delay: index * 0.06 }}
-      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 border border-border flex flex-col cursor-pointer"
+      className="group bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 border border-border flex flex-col cursor-pointer"
       onClick={() => navigate(`/courses/${course.slug}`)}
     >
       {/* Hero image panel */}

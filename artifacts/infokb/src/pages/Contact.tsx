@@ -75,7 +75,7 @@ export default function Contact() {
             </div>
 
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl border border-card-border p-5 flex gap-4">
+              <div className="bg-card rounded-2xl border border-card-border p-5 flex gap-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
                   <Phone className="h-4 w-4 text-primary" />
                 </div>
@@ -87,7 +87,7 @@ export default function Contact() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-card-border p-5 flex gap-4">
+              <div className="bg-card rounded-2xl border border-card-border p-5 flex gap-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
                   <Mail className="h-4 w-4 text-primary" />
                 </div>
@@ -99,7 +99,7 @@ export default function Contact() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-card-border p-5 flex gap-4">
+              <div className="bg-card rounded-2xl border border-card-border p-5 flex gap-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
                   <MapPin className="h-4 w-4 text-primary" />
                 </div>
@@ -111,7 +111,7 @@ export default function Contact() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-card-border p-5 flex gap-4">
+              <div className="bg-card rounded-2xl border border-card-border p-5 flex gap-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
                   <Clock className="h-4 w-4 text-primary" />
                 </div>
@@ -146,7 +146,7 @@ export default function Contact() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <div className="bg-white rounded-2xl border border-card-border p-8">
+            <div className="bg-card rounded-2xl border border-card-border p-8">
               {submitted ? (
                 <div className="text-center py-12">
                   <motion.div
@@ -206,7 +206,7 @@ export default function Contact() {
                         <select
                           value={formData.course}
                           onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                          className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all bg-white"
+                          className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all bg-background text-foreground"
                         >
                           <option value="">Select a course...</option>
                           {courseNames.map((name) => (

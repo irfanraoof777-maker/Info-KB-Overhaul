@@ -345,7 +345,7 @@ export default function CourseDetail() {
 
             {/* About */}
             {course.longDescription && (
-              <motion.div className="bg-white rounded-2xl border border-border p-8"
+              <motion.div className="bg-card rounded-2xl border border-border p-8"
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
                 <h2 className="text-xl font-bold text-foreground mb-4">About This Course</h2>
                 <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{course.longDescription}</p>
@@ -354,7 +354,7 @@ export default function CourseDetail() {
 
             {/* What you'll learn */}
             {course.highlights.length > 0 && (
-              <motion.div className="bg-white rounded-2xl border border-border p-8"
+              <motion.div className="bg-card rounded-2xl border border-border p-8"
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }}>
                 <h2 className="text-xl font-bold text-foreground mb-5">What You'll Learn</h2>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -370,7 +370,7 @@ export default function CourseDetail() {
 
             {/* Curriculum */}
             {course.curriculum.length > 0 && (
-              <motion.div className="bg-white rounded-2xl border border-border p-8"
+              <motion.div className="bg-card rounded-2xl border border-border p-8"
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
                 <h2 className="text-xl font-bold text-foreground mb-5">Course Curriculum</h2>
                 <div className="space-y-3">
@@ -404,7 +404,7 @@ export default function CourseDetail() {
 
             {/* Who is it for */}
             {course.whoIsItFor.length > 0 && (
-              <motion.div className="bg-white rounded-2xl border border-border p-8"
+              <motion.div className="bg-card rounded-2xl border border-border p-8"
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
                 <h2 className="text-xl font-bold text-foreground mb-5">Who Is This For</h2>
                 <div className="flex flex-wrap gap-2">
@@ -417,7 +417,7 @@ export default function CourseDetail() {
 
             {/* Instructor */}
             {course.instructor && (
-              <motion.div className="bg-white rounded-2xl border border-border p-8"
+              <motion.div className="bg-card rounded-2xl border border-border p-8"
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
                 <h2 className="text-xl font-bold text-foreground mb-4">Your Instructor</h2>
                 <div className="flex items-start gap-4">
@@ -438,7 +438,7 @@ export default function CourseDetail() {
           {/* Sidebar */}
           <div>
             <motion.div
-              className="bg-white rounded-2xl border border-border overflow-hidden sticky top-24 shadow-lg"
+              className="bg-card rounded-2xl border border-border overflow-hidden sticky top-24 shadow-lg"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
             >
               {/* Video / thumbnail */}

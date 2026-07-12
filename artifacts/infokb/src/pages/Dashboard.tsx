@@ -138,15 +138,15 @@ export default function Dashboard() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Stats bar */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-          <div className="bg-white rounded-2xl border border-border p-5">
+          <div className="bg-card rounded-2xl border border-border p-5">
             <p className="text-muted-foreground text-sm mb-1">Enrolled Courses</p>
             <p className="text-3xl font-extrabold text-foreground">{myCourses.length}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-border p-5">
+          <div className="bg-card rounded-2xl border border-border p-5">
             <p className="text-muted-foreground text-sm mb-1">Account</p>
             <p className="text-sm font-semibold text-foreground truncate">{user.email}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-border p-5 flex items-center justify-between">
+          <div className="bg-card rounded-2xl border border-border p-5 flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm mb-1">Browse More</p>
               <p className="text-sm font-semibold text-foreground">Find new courses</p>
@@ -167,7 +167,7 @@ export default function Dashboard() {
             <span className="text-sm">Loading your courses…</span>
           </div>
         ) : myCourses.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-border p-12 text-center">
+          <div className="bg-card rounded-2xl border border-border p-12 text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No courses yet</h3>
             <p className="text-muted-foreground text-sm mb-6">
@@ -185,7 +185,7 @@ export default function Dashboard() {
               const hasVideo = !!(c.full_video_url || c.trailer_url);
               return (
                 <div key={ec.course_id}
-                  className="group bg-white rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
+                  className="group bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
                   {/* Thumbnail */}
                   <div className="relative h-40 bg-gradient-to-br from-[#003d6b] to-[#005B99] overflow-hidden">
                     {c.thumbnail_url ? (

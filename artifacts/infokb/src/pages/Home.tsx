@@ -205,7 +205,7 @@ export default function Home() {
       </section>
 
       {/* Stats */}
-      <section className="bg-white border-b border-border">
+      <section className="bg-background border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat, i) => (
@@ -283,7 +283,7 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12"

@@ -184,7 +184,7 @@ export default function Courses() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search courses..."
-                  className="w-full pl-11 pr-10 py-3 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
+                  className="w-full pl-11 pr-10 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
                 />
                 {search && (
                   <button
@@ -206,7 +206,7 @@ export default function Courses() {
                       className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                         activeCategory === cat
                           ? "bg-primary text-white shadow-sm"
-                          : "bg-white text-muted-foreground border border-border hover:border-primary hover:text-primary"
+                          : "bg-background text-muted-foreground border border-border hover:border-primary hover:text-primary"
                       }`}
                     >
                       {cat}
