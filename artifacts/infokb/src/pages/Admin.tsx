@@ -156,7 +156,9 @@ function DbSetupBanner({ sql }: { sql: string }) {
   );
 }
 
-// ── R2 File Upload Button (presigned URL — direct browser → R2) ───────────────
+// ── File Upload Button ────────────────────────────────────────────────────────
+// uploadEndpoint defaults to /api/admin/upload (R2 — for course assets).
+// Team member photos use /api/admin/upload-team-photo (Supabase Storage).
 
 interface UploadButtonProps {
   label: string;
@@ -164,13 +166,20 @@ interface UploadButtonProps {
   currentUrl: string;
   onUploaded: (url: string) => void;
   auth: { u: string; p: string };
+  uploadEndpoint?: string;
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
-function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadButtonProps) {
+function UploadButton({ label, accept, currentUrl, onUploaded, auth, uploadEndpoint = "/api/admin/upload", onUploadingChange }: UploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+
+  const setUploadingState = (v: boolean) => {
+    setUploading(v);
+    onUploadingChange?.(v);
+  };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -178,39 +187,34 @@ function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadBut
 
     if (inputRef.current) inputRef.current.value = "";
 
-    setUploading(true);
+    setUploadingState(true);
     setProgress(0);
     setError("");
 
     try {
-      console.log("[UPLOAD TRACE] Step 1 — File selected:", file.name, file.size, "bytes", file.type);
       const formData = new FormData();
       formData.append("file", file);
 
-      console.log("[UPLOAD TRACE] Step 2 — Sending POST /api/admin/upload");
-      const res = await fetch("/api/admin/upload", {
+      const res = await fetch(uploadEndpoint, {
         method: "POST",
         headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
         body: formData,
       });
 
-      console.log("[UPLOAD TRACE] Step 3 — Response received:", res.status, res.statusText);
       const data = await res.json() as { publicUrl?: string; error?: string };
-      console.log("[UPLOAD TRACE] Step 4 — Response body:", JSON.stringify(data));
 
       if (!res.ok || !data.publicUrl) {
         throw new Error(data.error ?? "Upload failed.");
       }
 
-      console.log("[UPLOAD TRACE] Step 5 — Upload succeeded. publicUrl:", data.publicUrl);
       setProgress(100);
       onUploaded(data.publicUrl);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Upload failed.";
-      console.error("[UPLOAD TRACE] FAILED:", msg);
+      console.error("[UploadButton] FAILED:", msg);
       setError(msg);
     } finally {
-      setUploading(false);
+      setUploadingState(false);
       setProgress(0);
     }
   };
@@ -954,6 +958,7 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
   const isEdit = !!initial;
   const [form, setForm] = useState<Omit<Trainer, "id" | "created_at">>(BLANK_TRAINER);
   const [saving, setSaving] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -970,20 +975,18 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (photoUploading) return;
     setSaving(true);
     setError("");
     try {
       const url = isEdit ? `/api/admin/team-members/${initial!.id}` : "/api/admin/team-members";
       const method = isEdit ? "PUT" : "POST";
-      console.log(`[UPLOAD TRACE] Step 6 — Saving team member. photo_url="${form.photo_url}", method=${method}, url=${url}`);
-      console.log(`[TeamMemberModal] ${method} ${url}`, JSON.stringify(form));
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
         body: JSON.stringify(form),
       });
       const data = await res.json() as { error?: string; member?: unknown };
-      console.log(`[UPLOAD TRACE] Step 7 — Save response ${res.status}:`, JSON.stringify(data));
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status} – save failed`);
       onSaved();
       onClose();
@@ -1053,13 +1056,22 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
             currentUrl={form.photo_url}
             onUploaded={(url) => set("photo_url", url)}
             auth={auth}
+            uploadEndpoint="/api/admin/upload-team-photo"
+            onUploadingChange={setPhotoUploading}
           />
+
+          {photoUploading && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Upload in progress — Save will be enabled once complete.
+            </p>
+          )}
 
           {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || photoUploading}>
               {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : isEdit ? "Save Changes" : "Add Team Member"}
             </Button>
           </DialogFooter>

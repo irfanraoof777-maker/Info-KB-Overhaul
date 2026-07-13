@@ -347,7 +347,7 @@ router.delete("/users/:id", adminAuth, async (req, res) => {
   }
 });
 
-// ── R2 Upload (server-side proxy — avoids browser CORS on R2) ────────────────
+// ── R2 Upload (server-side proxy — course files / course assets only) ────────
 router.post("/upload", adminAuth, (req, res, next) => {
   upload.single("file")(req, res, (err) => {
     if (err) { res.status(400).json({ error: err.message }); return; }
@@ -355,13 +355,8 @@ router.post("/upload", adminAuth, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    console.log("[UPLOAD TRACE] Backend Step A — /upload route hit");
     const file = (req as Request & { file?: Express.Multer.File }).file;
-    if (!file) {
-      console.error("[UPLOAD TRACE] Backend Step A — FAIL: no file in request");
-      res.status(400).json({ error: "No file provided." }); return;
-    }
-    console.log("[UPLOAD TRACE] Backend Step B — File received:", file.originalname, file.size, "bytes", file.mimetype);
+    if (!file) { res.status(400).json({ error: "No file provided." }); return; }
 
     const endpoint = process.env["CLOUDFLARE_R2_ENDPOINT"];
     const accessKey = process.env["CLOUDFLARE_R2_ACCESS_KEY"];
@@ -369,23 +364,13 @@ router.post("/upload", adminAuth, (req, res, next) => {
     const bucket = process.env["CLOUDFLARE_R2_BUCKET"];
     const publicUrlBase = process.env["CLOUDFLARE_R2_PUBLIC_URL"];
 
-    console.log("[UPLOAD TRACE] Backend Step C — R2 config:", {
-      endpoint: endpoint ? `SET (${endpoint.slice(0, 30)}…)` : "NOT SET",
-      accessKey: accessKey ? "SET" : "NOT SET",
-      secretKey: secretKey ? "SET" : "NOT SET",
-      bucket: bucket ? `SET (${bucket})` : "NOT SET",
-      publicUrlBase: publicUrlBase ? `SET (${publicUrlBase.slice(0, 40)}…)` : "NOT SET",
-    });
-
     if (!endpoint || !accessKey || !secretKey || !bucket || !publicUrlBase) {
-      console.error("[UPLOAD TRACE] Backend Step C — FAIL: R2 not fully configured");
       res.status(500).json({ error: "R2 storage is not configured on the server." });
       return;
     }
 
     const ext = (file.originalname.split(".").pop() ?? "bin").toLowerCase();
     const key = `uploads/${randomUUID()}.${ext}`;
-    console.log("[UPLOAD TRACE] Backend Step D — Uploading to R2, key:", key);
 
     const client = new S3Client({
       region: "auto",
@@ -401,10 +386,57 @@ router.post("/upload", adminAuth, (req, res, next) => {
     }));
 
     const publicUrl = `${publicUrlBase.replace(/\/$/, "")}/${key}`;
-    console.log("[UPLOAD TRACE] Backend Step E — R2 upload succeeded. publicUrl:", publicUrl);
     res.json({ publicUrl });
   } catch (err) {
-    console.error("[UPLOAD TRACE] Backend FAILED:", extractError(err), err);
+    console.error("[R2 upload] FAILED:", extractError(err));
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+// ── Supabase Storage Upload (team member photos only) ─────────────────────────
+router.post("/upload-team-photo", adminAuth, (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) { res.status(400).json({ error: err.message }); return; }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const file = (req as Request & { file?: Express.Multer.File }).file;
+    if (!file) { res.status(400).json({ error: "No file provided." }); return; }
+
+    if (!file.mimetype.startsWith("image/")) {
+      res.status(400).json({ error: "Only image files are allowed for team member photos." });
+      return;
+    }
+
+    const supabase = getSupabaseAdmin();
+    const BUCKET = "team-member-photos";
+
+    // Auto-create the public bucket on first use (no-op if it already exists)
+    const { error: bucketErr } = await supabase.storage.createBucket(BUCKET, {
+      public: true,
+      fileSizeLimit: 5 * 1024 * 1024,
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+    });
+    if (bucketErr && !bucketErr.message.toLowerCase().includes("already exists")) {
+      console.error("[upload-team-photo] bucket create error:", bucketErr.message);
+    }
+
+    const ext = (file.originalname.split(".").pop() ?? "jpg").toLowerCase();
+    const key = `${randomUUID()}.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(key, file.buffer, { contentType: file.mimetype, upsert: false });
+
+    if (uploadErr) throw uploadErr;
+
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(key);
+
+    console.log("[upload-team-photo] uploaded:", key, "→", publicUrl);
+    res.json({ publicUrl });
+  } catch (err) {
+    console.error("[upload-team-photo] FAILED:", extractError(err));
     res.status(500).json({ error: extractError(err) });
   }
 });
