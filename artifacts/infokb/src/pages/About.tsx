@@ -41,7 +41,7 @@ export default function About() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f4f8fb] pt-20">
+    <div className="min-h-screen bg-background pt-20">
       {/* Hero */}
       <div className="bg-gradient-to-r from-[#003d6b] to-[#005B99] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -96,7 +96,7 @@ export default function About() {
                   { label: "Corporate Clients", value: "50+" },
                   { label: "Course Success Rate", value: "95%" },
                 ].map((stat) => (
-                  <div key={stat.label} className="bg-[#f4f8fb] rounded-xl p-4">
+                  <div key={stat.label} className="bg-muted rounded-xl p-4">
                     <div className="text-2xl font-extrabold text-primary">{stat.value}</div>
                     <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
                   </div>
@@ -130,7 +130,7 @@ export default function About() {
       </section>
 
       {/* Values */}
-      <section className="py-16 bg-[#f4f8fb]">
+      <section className="py-16 bg-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12"

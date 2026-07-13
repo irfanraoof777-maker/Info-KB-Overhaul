@@ -63,9 +63,11 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-18">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <img
-              src="/logo.jpg"
+              src="/logo.png"
               alt="InfoKB"
-              className="h-14 w-auto"
+              className={`h-14 w-auto transition-all duration-300 ${
+                !solidBg ? "brightness-0 invert" : "dark:brightness-0 dark:invert"
+              }`}
             />
           </Link>
 

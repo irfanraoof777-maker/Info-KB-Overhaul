@@ -131,7 +131,7 @@ export default function Courses() {
   });
 
   return (
-    <div className="min-h-screen bg-[#f4f8fb] pt-20">
+    <div className="min-h-screen bg-background pt-20">
       {/* Page Header */}
       <div className="bg-gradient-to-r from-[#003d6b] to-[#005B99] py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

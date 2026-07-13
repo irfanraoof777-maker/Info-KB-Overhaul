@@ -8,12 +8,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div className="lg:col-span-1">
             <img
-              src="http://infokb.com/wp-content/uploads/2024/05/logo.png"
+              src="/logo.png"
               alt="InfoKB"
-              className="h-8 w-auto mb-4 brightness-0 invert"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
+              className="h-10 w-auto mb-4 brightness-0 invert"
             />
             <p className="text-white/60 text-sm leading-relaxed mb-5">
               10+ years of delivering world-class IT training and certifications. Your career growth is our mission.

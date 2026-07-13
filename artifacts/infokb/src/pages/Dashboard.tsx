@@ -109,7 +109,7 @@ export default function Dashboard() {
   const handleLogout = async () => { await signOut(); navigate("/"); };
 
   return (
-    <div className="min-h-screen bg-[#f4f8fb] pt-20">
+    <div className="min-h-screen bg-background pt-20">
       {playingCourse && (
         <VideoModal
           url={playingCourse.courses.full_video_url || playingCourse.courses.trailer_url}

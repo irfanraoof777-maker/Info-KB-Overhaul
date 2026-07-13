@@ -294,7 +294,7 @@ export default function CourseDetail() {
     p === 0 ? "Free" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p);
 
   return (
-    <div className="min-h-screen bg-[#f4f8fb] pt-20">
+    <div className="min-h-screen bg-background pt-20">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#003d6b] to-[#005B99] py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -442,7 +442,7 @@ export default function CourseDetail() {
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
             >
               {/* Video / thumbnail */}
-              <div className="p-4 border-b border-border bg-gray-950">
+              <div className="p-4 border-b border-border bg-zinc-950">
                 {enrolled && course.fullVideoUrl ? (
                   <VideoPlayer url={course.fullVideoUrl} title={`${course.title} — Full Course`} />
                 ) : course.trailerUrl ? (

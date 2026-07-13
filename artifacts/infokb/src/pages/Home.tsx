@@ -220,7 +220,7 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center mb-3">
                   <stat.icon className="h-5 w-5 text-primary" />
                 </div>
-                <div className="text-3xl font-extrabold text-[#005B99] mb-1">{stat.value}</div>
+                <div className="text-3xl font-extrabold text-primary mb-1">{stat.value}</div>
                 <div className="text-sm text-muted-foreground font-medium">{stat.label}</div>
               </motion.div>
             ))}
@@ -229,7 +229,7 @@ export default function Home() {
       </section>
 
       {/* Featured Courses */}
-      <section className="py-20 bg-[#f4f8fb]">
+      <section className="py-20 bg-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             className="text-center mb-12"
@@ -310,7 +310,7 @@ export default function Home() {
                 {i < steps.length - 1 && (
                   <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-border to-transparent z-0" style={{ width: "calc(100% - 4rem)", left: "calc(100% - 2rem)" }} />
                 )}
-                <div className="relative bg-[#f4f8fb] rounded-2xl p-8 border border-border">
+                <div className="relative bg-card rounded-2xl p-8 border border-border">
                   <div className="text-5xl font-extrabold text-primary/12 mb-4">{step.number}</div>
                   <h3 className="text-xl font-bold text-foreground mb-3">{step.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
