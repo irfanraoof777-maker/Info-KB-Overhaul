@@ -166,6 +166,74 @@ export default function About() {
         </div>
       </section>
 
+      {/* Expert Trainers — only shown when at least one trainer exists in the DB */}
+      {trainers.length > 0 && (
+        <section className="py-16 bg-background">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div
+              className="text-center mb-12"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <span className="text-[#23B33A] font-semibold text-sm uppercase tracking-wider">The Team</span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground mt-2">
+                Meet Our Expert Trainers
+              </h2>
+              <p className="text-muted-foreground mt-3 max-w-xl mx-auto text-sm">
+                Practitioners first, instructors second — every trainer holds the certifications they teach.
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {trainers.map((t, i) => (
+                <motion.div
+                  key={t.id}
+                  className="bg-card rounded-2xl border border-border p-6 flex flex-col items-center text-center gap-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.07 }}
+                >
+                  {t.photo_url ? (
+                    <img
+                      src={t.photo_url}
+                      alt={t.name}
+                      className="w-24 h-24 rounded-full object-cover ring-4 ring-primary/10"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#005B99] to-[#23B33A] flex items-center justify-center text-white font-extrabold text-2xl ring-4 ring-primary/10">
+                      {t.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="font-bold text-foreground text-lg leading-tight">{t.name}</h3>
+                    <p className="text-[#23B33A] text-sm font-semibold mt-1">{t.title}</p>
+                    {t.experience && (
+                      <p className="text-muted-foreground text-xs mt-1">{t.experience} experience</p>
+                    )}
+                  </div>
+
+                  {t.certs && (
+                    <div className="flex flex-wrap justify-center gap-1.5 mt-auto pt-2 border-t border-border w-full">
+                      {t.certs.split(",").map((cert) => cert.trim()).filter(Boolean).map((cert) => (
+                        <span
+                          key={cert}
+                          className="px-2.5 py-1 rounded-full bg-primary/8 text-primary text-xs font-medium"
+                        >
+                          {cert}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CTA */}
       <section className="py-14 bg-gradient-to-r from-[#005B99] to-[#0077cc]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
