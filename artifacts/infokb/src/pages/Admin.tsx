@@ -964,17 +964,22 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
     setError("");
     try {
       const url = isEdit ? `/api/admin/trainers/${initial!.id}` : "/api/admin/trainers";
+      const method = isEdit ? "PUT" : "POST";
+      console.log(`[TrainerModal] ${method} ${url}`, JSON.stringify(form));
       const res = await fetch(url, {
-        method: isEdit ? "PUT" : "POST",
+        method,
         headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
         body: JSON.stringify(form),
       });
-      const data = await res.json() as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      const data = await res.json() as { error?: string; trainer?: unknown };
+      console.log(`[TrainerModal] response ${res.status}:`, data);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status} – save failed`);
       onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[TrainerModal] submit failed:", msg);
+      setError(msg);
     } finally {
       setSaving(false);
     }
@@ -1043,6 +1048,7 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [setupSql, setSetupSql] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Trainer | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -1050,15 +1056,22 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setSetupSql(null);
     try {
       const res = await fetch("/api/admin/trainers", {
         headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
       });
-      const data = await res.json() as { trainers?: Trainer[]; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Failed to load");
+      const data = await res.json() as { trainers?: Trainer[]; error?: string; setupRequired?: boolean; sql?: string };
+      console.log("[TrainersTab] GET /api/admin/trainers →", res.status, data);
+      if (!res.ok) {
+        if (data.setupRequired && data.sql) setSetupSql(data.sql);
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
       setTrainers(data.trainers ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[TrainersTab] load failed:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -1074,10 +1087,16 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
         method: "DELETE",
         headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
       });
-      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? "Delete failed"); }
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        console.error("[TrainersTab] delete failed:", d);
+        throw new Error(d.error ?? `HTTP ${res.status}`);
+      }
       setTrainers((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[TrainersTab] handleDelete failed:", msg);
+      setError(msg);
     } finally {
       setDeletingId(null);
     }
@@ -1100,7 +1119,17 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
         </div>
       </div>
 
-      {error && <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>}
+      {error && (
+        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 space-y-2">
+          <p className="text-sm font-semibold text-destructive">Error: {error}</p>
+          {setupSql && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Run this SQL once in your <strong>Supabase Dashboard → SQL Editor</strong>, then click Refresh:</p>
+              <pre className="text-xs bg-muted rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-all border border-border max-h-48">{setupSql}</pre>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-16 text-muted-foreground animate-pulse">Loading trainers…</div>

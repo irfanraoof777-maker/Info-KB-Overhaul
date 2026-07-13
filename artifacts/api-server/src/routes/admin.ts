@@ -23,6 +23,32 @@ function getSupabaseAdmin() {
   });
 }
 
+/**
+ * Supabase throws PostgrestError objects, NOT standard Error instances.
+ * PostgrestError = { message, details, hint, code } — none of which are
+ * accessible via `instanceof Error`. This helper handles both cases and
+ * returns the most useful string for display / logging.
+ */
+function extractError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err !== null && typeof err === "object") {
+    const e = err as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof e["message"] === "string") parts.push(e["message"]);
+    if (typeof e["details"] === "string" && e["details"]) parts.push(`Details: ${e["details"]}`);
+    if (typeof e["hint"] === "string" && e["hint"]) parts.push(`Hint: ${e["hint"]}`);
+    if (typeof e["code"] === "string" && e["code"]) parts.push(`(code: ${e["code"]})`);
+    if (parts.length) return parts.join(" — ");
+  }
+  return String(err);
+}
+
+/** PostgreSQL / PostgREST error codes meaning the table doesn't exist yet */
+const MISSING_TABLE_CODES = new Set([
+  "42P01",    // PostgreSQL: relation does not exist
+  "PGRST205", // PostgREST: table not found in schema cache
+]);
+
 function adminAuth(req: Request, res: Response, next: NextFunction) {
   const expectedUser = process.env["ADMIN_USERNAME"];
   const expectedPass = process.env["ADMIN_PASSWORD"];
@@ -125,7 +151,7 @@ router.get("/db-status", adminAuth, async (_req, res) => {
       res.json({ ready: true });
     }
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -140,7 +166,7 @@ router.get("/courses", adminAuth, async (_req, res) => {
     if (error) throw error;
     res.json({ courses: data ?? [] });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -156,7 +182,7 @@ router.post("/courses", adminAuth, async (req, res) => {
     if (error) throw error;
     res.json({ course: data });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -176,7 +202,7 @@ router.put("/courses/:id", adminAuth, async (req, res) => {
     if (error) throw error;
     res.json({ course: data });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -188,7 +214,7 @@ router.delete("/courses/:id", adminAuth, async (req, res) => {
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -230,7 +256,7 @@ router.get("/students", adminAuth, async (_req, res) => {
 
     res.json({ students });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -245,7 +271,7 @@ router.get("/orders", adminAuth, async (_req, res) => {
     if (error) throw error;
     res.json({ orders: data ?? [] });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -263,7 +289,7 @@ router.get("/users", adminAuth, async (_req, res) => {
     }));
     res.json({ users });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -275,8 +301,8 @@ router.delete("/users/:id", adminAuth, async (req, res) => {
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    res.status(500).json({ error: msg });
+    console.error("[DELETE /admin/users] error:", err);
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -321,7 +347,8 @@ router.post("/upload", adminAuth, (req, res, next) => {
     const publicUrl = `${publicUrlBase.replace(/\/$/, "")}/${key}`;
     res.json({ publicUrl });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown error" });
+    console.error("[POST /admin/upload] error:", err);
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -333,10 +360,19 @@ router.get("/trainers", adminAuth, async (_req, res) => {
       .from("trainers")
       .select("*")
       .order("sort_order", { ascending: true });
-    if (error) throw error;
+    if (error) {
+      console.error("[GET /admin/trainers] Supabase error:", error);
+      const code = String((error as Record<string, unknown>)["code"] ?? "");
+      if (MISSING_TABLE_CODES.has(code)) {
+        res.status(503).json({ error: "The 'trainers' table does not exist yet. Please run the setup SQL in your Supabase Dashboard → SQL Editor, then click Refresh.", setupRequired: true, sql: SETUP_SQL });
+        return;
+      }
+      throw error;
+    }
     res.json({ trainers: data ?? [] });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    console.error("[GET /admin/trainers] Unexpected error:", err);
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -344,11 +380,21 @@ router.post("/trainers", adminAuth, async (req, res) => {
   try {
     const supabase = getSupabaseAdmin();
     const body = req.body as Record<string, unknown>;
+    console.log("[POST /admin/trainers] Inserting body:", JSON.stringify(body));
     const { data, error } = await supabase.from("trainers").insert([body]).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error("[POST /admin/trainers] Supabase error:", error);
+      const code = String((error as Record<string, unknown>)["code"] ?? "");
+      if (MISSING_TABLE_CODES.has(code)) {
+        res.status(503).json({ error: "The 'trainers' table does not exist yet. Please run the setup SQL in your Supabase Dashboard → SQL Editor, then click Refresh.", setupRequired: true, sql: SETUP_SQL });
+        return;
+      }
+      throw error;
+    }
     res.json({ trainer: data });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    console.error("[POST /admin/trainers] Unexpected error:", err);
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -359,11 +405,16 @@ router.put("/trainers/:id", adminAuth, async (req, res) => {
     const body = req.body as Record<string, unknown>;
     delete body.id;
     delete body.created_at;
+    console.log("[PUT /admin/trainers] Updating id:", id, "body:", JSON.stringify(body));
     const { data, error } = await supabase.from("trainers").update(body).eq("id", id).select().single();
-    if (error) throw error;
+    if (error) {
+      console.error("[PUT /admin/trainers] Supabase error:", error);
+      throw error;
+    }
     res.json({ trainer: data });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    console.error("[PUT /admin/trainers] Unexpected error:", err);
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
@@ -372,10 +423,14 @@ router.delete("/trainers/:id", adminAuth, async (req, res) => {
   try {
     const supabase = getSupabaseAdmin();
     const { error } = await supabase.from("trainers").delete().eq("id", id);
-    if (error) throw error;
+    if (error) {
+      console.error("[DELETE /admin/trainers] Supabase error:", error);
+      throw error;
+    }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown" });
+    console.error("[DELETE /admin/trainers] Unexpected error:", err);
+    res.status(500).json({ error: extractError(err) });
   }
 });
 
