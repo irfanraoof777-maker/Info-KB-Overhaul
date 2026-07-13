@@ -30,8 +30,7 @@ export default function Navbar() {
     setOpen(false);
   }, [location]);
 
-  const isHome = location === "/";
-  const solidBg = scrolled || !isHome;
+  const solidBg = true;
 
   const handleLogout = async () => {
     await signOut();
