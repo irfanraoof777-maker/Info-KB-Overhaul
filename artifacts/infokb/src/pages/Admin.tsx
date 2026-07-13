@@ -183,24 +183,32 @@ function UploadButton({ label, accept, currentUrl, onUploaded, auth }: UploadBut
     setError("");
 
     try {
+      console.log("[UPLOAD TRACE] Step 1 — File selected:", file.name, file.size, "bytes", file.type);
       const formData = new FormData();
       formData.append("file", file);
 
+      console.log("[UPLOAD TRACE] Step 2 — Sending POST /api/admin/upload");
       const res = await fetch("/api/admin/upload", {
         method: "POST",
         headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
         body: formData,
       });
 
+      console.log("[UPLOAD TRACE] Step 3 — Response received:", res.status, res.statusText);
       const data = await res.json() as { publicUrl?: string; error?: string };
+      console.log("[UPLOAD TRACE] Step 4 — Response body:", JSON.stringify(data));
+
       if (!res.ok || !data.publicUrl) {
         throw new Error(data.error ?? "Upload failed.");
       }
 
+      console.log("[UPLOAD TRACE] Step 5 — Upload succeeded. publicUrl:", data.publicUrl);
       setProgress(100);
       onUploaded(data.publicUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.");
+      const msg = err instanceof Error ? err.message : "Upload failed.";
+      console.error("[UPLOAD TRACE] FAILED:", msg);
+      setError(msg);
     } finally {
       setUploading(false);
       setProgress(0);
@@ -967,6 +975,7 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
     try {
       const url = isEdit ? `/api/admin/team-members/${initial!.id}` : "/api/admin/team-members";
       const method = isEdit ? "PUT" : "POST";
+      console.log(`[UPLOAD TRACE] Step 6 — Saving team member. photo_url="${form.photo_url}", method=${method}, url=${url}`);
       console.log(`[TeamMemberModal] ${method} ${url}`, JSON.stringify(form));
       const res = await fetch(url, {
         method,
@@ -974,7 +983,7 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
         body: JSON.stringify(form),
       });
       const data = await res.json() as { error?: string; member?: unknown };
-      console.log(`[TrainerModal] response ${res.status}:`, data);
+      console.log(`[UPLOAD TRACE] Step 7 — Save response ${res.status}:`, JSON.stringify(data));
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status} – save failed`);
       onSaved();
       onClose();
