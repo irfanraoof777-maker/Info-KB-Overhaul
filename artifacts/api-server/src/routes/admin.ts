@@ -108,16 +108,57 @@ CREATE TABLE IF NOT EXISTS public.enrollments (
   UNIQUE(user_id, course_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.trainers (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name       text NOT NULL DEFAULT '',
-  title      text NOT NULL DEFAULT '',
-  certs      text NOT NULL DEFAULT '',
-  experience text NOT NULL DEFAULT '',
-  photo_url  text NOT NULL DEFAULT '',
-  sort_order integer NOT NULL DEFAULT 0,
-  created_at timestamptz DEFAULT now()
-);`;
+-- Team members table (handles both fresh install and migration from old trainers schema)
+DO $
+BEGIN
+  -- Create with new schema if it doesn't exist yet
+  CREATE TABLE IF NOT EXISTS public.trainers (
+    id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name             text NOT NULL DEFAULT '',
+    role             text NOT NULL DEFAULT '',
+    certifications   text NOT NULL DEFAULT '',
+    experience_years integer NOT NULL DEFAULT 0,
+    bio              text NOT NULL DEFAULT '',
+    photo_url        text NOT NULL DEFAULT '',
+    sort_order       integer NOT NULL DEFAULT 0,
+    created_at       timestamptz DEFAULT now()
+  );
+
+  -- Migrate title → role (for existing installs)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='role') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='title') THEN
+      ALTER TABLE public.trainers RENAME COLUMN title TO role;
+    ELSE
+      ALTER TABLE public.trainers ADD COLUMN role text NOT NULL DEFAULT '';
+    END IF;
+  END IF;
+
+  -- Migrate certs → certifications (for existing installs)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='certifications') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='certs') THEN
+      ALTER TABLE public.trainers RENAME COLUMN certs TO certifications;
+    ELSE
+      ALTER TABLE public.trainers ADD COLUMN certifications text NOT NULL DEFAULT '';
+    END IF;
+  END IF;
+
+  -- Migrate experience (text) → experience_years (integer) (for existing installs)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='experience_years') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='experience') THEN
+      ALTER TABLE public.trainers ADD COLUMN experience_years integer NOT NULL DEFAULT 0;
+      UPDATE public.trainers
+        SET experience_years = COALESCE(NULLIF(regexp_replace(experience, '[^0-9]', '', 'g'), '')::integer, 0);
+      ALTER TABLE public.trainers DROP COLUMN experience;
+    ELSE
+      ALTER TABLE public.trainers ADD COLUMN experience_years integer NOT NULL DEFAULT 0;
+    END IF;
+  END IF;
+
+  -- Add bio column if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='bio') THEN
+    ALTER TABLE public.trainers ADD COLUMN bio text NOT NULL DEFAULT '';
+  END IF;
+END $;`;
 
 // ── Verify credentials (POST with JSON body — no Supabase call) ──────
 router.post("/verify", (req: Request, res: Response) => {
@@ -352,8 +393,8 @@ router.post("/upload", adminAuth, (req, res, next) => {
   }
 });
 
-// ── Trainers ──────────────────────────────────────────────────
-router.get("/trainers", adminAuth, async (_req, res) => {
+// ── Team Members ───────────────────────────────────────────────
+router.get("/team-members", adminAuth, async (_req, res) => {
   try {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
@@ -361,75 +402,83 @@ router.get("/trainers", adminAuth, async (_req, res) => {
       .select("*")
       .order("sort_order", { ascending: true });
     if (error) {
-      console.error("[GET /admin/trainers] Supabase error:", error);
+      console.error("[GET /admin/team-members] Supabase error:", error);
       const code = String((error as Record<string, unknown>)["code"] ?? "");
       if (MISSING_TABLE_CODES.has(code)) {
-        res.status(503).json({ error: "The 'trainers' table does not exist yet. Please run the setup SQL in your Supabase Dashboard → SQL Editor, then click Refresh.", setupRequired: true, sql: SETUP_SQL });
+        res.status(503).json({ error: "The team members table does not exist yet. Please run the setup SQL in your Supabase Dashboard → SQL Editor, then click Refresh.", setupRequired: true, sql: SETUP_SQL });
         return;
       }
       throw error;
     }
-    res.json({ trainers: data ?? [] });
+    res.json({ members: data ?? [] });
   } catch (err) {
-    console.error("[GET /admin/trainers] Unexpected error:", err);
+    console.error("[GET /admin/team-members] Unexpected error:", err);
     res.status(500).json({ error: extractError(err) });
   }
 });
 
-router.post("/trainers", adminAuth, async (req, res) => {
+router.post("/team-members", adminAuth, async (req, res) => {
   try {
     const supabase = getSupabaseAdmin();
     const body = req.body as Record<string, unknown>;
-    console.log("[POST /admin/trainers] Inserting body:", JSON.stringify(body));
+    // Coerce experience_years to integer
+    if (body["experience_years"] !== undefined) {
+      body["experience_years"] = parseInt(String(body["experience_years"]), 10) || 0;
+    }
+    console.log("[POST /admin/team-members] Inserting body:", JSON.stringify(body));
     const { data, error } = await supabase.from("trainers").insert([body]).select().single();
     if (error) {
-      console.error("[POST /admin/trainers] Supabase error:", error);
+      console.error("[POST /admin/team-members] Supabase error:", error);
       const code = String((error as Record<string, unknown>)["code"] ?? "");
       if (MISSING_TABLE_CODES.has(code)) {
-        res.status(503).json({ error: "The 'trainers' table does not exist yet. Please run the setup SQL in your Supabase Dashboard → SQL Editor, then click Refresh.", setupRequired: true, sql: SETUP_SQL });
+        res.status(503).json({ error: "The team members table does not exist yet. Please run the setup SQL in your Supabase Dashboard → SQL Editor, then click Refresh.", setupRequired: true, sql: SETUP_SQL });
         return;
       }
       throw error;
     }
-    res.json({ trainer: data });
+    res.json({ member: data });
   } catch (err) {
-    console.error("[POST /admin/trainers] Unexpected error:", err);
+    console.error("[POST /admin/team-members] Unexpected error:", err);
     res.status(500).json({ error: extractError(err) });
   }
 });
 
-router.put("/trainers/:id", adminAuth, async (req, res) => {
+router.put("/team-members/:id", adminAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
     const supabase = getSupabaseAdmin();
     const body = req.body as Record<string, unknown>;
     delete body.id;
     delete body.created_at;
-    console.log("[PUT /admin/trainers] Updating id:", id, "body:", JSON.stringify(body));
+    // Coerce experience_years to integer
+    if (body["experience_years"] !== undefined) {
+      body["experience_years"] = parseInt(String(body["experience_years"]), 10) || 0;
+    }
+    console.log("[PUT /admin/team-members] Updating id:", id, "body:", JSON.stringify(body));
     const { data, error } = await supabase.from("trainers").update(body).eq("id", id).select().single();
     if (error) {
-      console.error("[PUT /admin/trainers] Supabase error:", error);
+      console.error("[PUT /admin/team-members] Supabase error:", error);
       throw error;
     }
-    res.json({ trainer: data });
+    res.json({ member: data });
   } catch (err) {
-    console.error("[PUT /admin/trainers] Unexpected error:", err);
+    console.error("[PUT /admin/team-members] Unexpected error:", err);
     res.status(500).json({ error: extractError(err) });
   }
 });
 
-router.delete("/trainers/:id", adminAuth, async (req, res) => {
+router.delete("/team-members/:id", adminAuth, async (req, res) => {
   const id = String(req.params.id);
   try {
     const supabase = getSupabaseAdmin();
     const { error } = await supabase.from("trainers").delete().eq("id", id);
     if (error) {
-      console.error("[DELETE /admin/trainers] Supabase error:", error);
+      console.error("[DELETE /admin/team-members] Supabase error:", error);
       throw error;
     }
     res.json({ success: true });
   } catch (err) {
-    console.error("[DELETE /admin/trainers] Unexpected error:", err);
+    console.error("[DELETE /admin/team-members] Unexpected error:", err);
     res.status(500).json({ error: extractError(err) });
   }
 });

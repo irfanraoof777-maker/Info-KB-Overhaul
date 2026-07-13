@@ -1,0 +1,235 @@
+Refactor the entire Trainers feature into a Team Members feature and fix all related data/model issues.
+
+GOAL:
+Transform the current "Meet Our Expert Trainers" section into a professional company team section that supports trainers, founders, operations staff, student success managers, and other team members.
+
+========================================
+1. TERMINOLOGY CHANGES
+========================================
+
+Rename everywhere in the application:
+
+- Trainers → Team Members
+- Trainer → Team Member
+- Add Trainer → Add Team Member
+- Edit Trainer → Edit Team Member
+- Trainer Management → Team Management
+
+Update:
+- Admin panel labels
+- API responses/messages
+- Empty states
+- Success messages
+- Error messages
+- Frontend section headings
+
+========================================
+2. DATABASE CHANGES
+========================================
+
+Update the data model.
+
+Current fields:
+- name
+- title
+- certs
+- experience
+- photo_url
+- sort_order
+
+New fields:
+
+- name (text)
+- role (text)
+- certifications (text)
+- experience_years (integer)
+- bio (text, optional)
+- photo_url (text)
+- sort_order (integer)
+
+Requirements:
+
+- Create migration if needed.
+- Preserve existing trainer data.
+- Map:
+    title → role
+    certs → certifications
+- Convert experience field into experience_years where possible.
+- Do not lose existing records.
+
+========================================
+3. ADMIN PANEL CHANGES
+========================================
+
+Update Add/Edit Team Member form.
+
+Fields:
+
+1. Name *
+2. Role / Designation *
+3. Years of Experience *
+4. Certifications (optional)
+5. Bio (optional)
+6. Profile Photo
+7. Display Order
+
+Experience field:
+
+- Must be a numeric input
+- Allow only numbers
+- Min value: 0
+- Example:
+    1
+    3
+    5
+    10
+    15
+
+Do NOT allow free text such as:
+- "5 years"
+- "5 years of"
+- "ten years"
+
+Validation:
+- Required
+- Integer only
+
+========================================
+4. PROFILE PHOTO FIX
+========================================
+
+Trainer/team member photo upload is not working correctly.
+
+Debug and fix the entire upload flow.
+
+Verify:
+
+1. File upload succeeds.
+2. Image URL is returned.
+3. photo_url is stored in database.
+4. GET API returns photo_url.
+5. About page receives photo_url.
+6. Team card displays uploaded image.
+
+Fallback avatar should ONLY appear when:
+- photo_url is null
+- photo_url is empty
+- image fails to load
+
+Add logging during debugging to identify the exact failure point.
+
+========================================
+5. ABOUT PAGE CHANGES
+========================================
+
+Current:
+
+THE TEAM
+Meet Our Expert Trainers
+
+Replace with:
+
+THE TEAM
+
+Meet Our Team
+
+Subtitle:
+
+"The passionate professionals behind InfoKB's training, operations, student success, and technology initiatives."
+
+========================================
+6. TEAM MEMBER CARD DESIGN
+========================================
+
+Redesign cards.
+
+Show:
+
+- Large circular profile image
+- Name
+- Role
+- Experience
+- Certifications
+- Short bio
+
+Display experience as:
+
+1 Year Experience
+5 Years Experience
+10 Years Experience
+
+Never display raw values directly.
+
+Certifications should appear as badges/pills.
+
+Examples:
+
+AWS Certified
+VMware Certified
+Nutanix Certified
+Azure Certified
+
+========================================
+7. RESPONSIVE LAYOUT
+========================================
+
+If only ONE team member exists:
+
+- Center the card
+- Maximum width around 350–400px
+- Avoid large empty whitespace
+
+If MULTIPLE team members exist:
+
+Desktop:
+- 4 cards per row
+
+Tablet:
+- 2 cards per row
+
+Mobile:
+- 1 card per row
+
+========================================
+8. TEAM MEMBER TYPES
+========================================
+
+The system must support:
+
+- Founder & Lead Trainer
+- Cloud Solutions Architect
+- VMware Specialist
+- Student Success Manager
+- Operations Coordinator
+- Program Manager
+
+Do not assume every team member is a trainer.
+
+========================================
+9. ABOUT PAGE POSITIONING
+========================================
+
+Place the Team section:
+
+AFTER:
+- Our Story
+- Company Statistics
+
+BEFORE:
+- The InfoKB Difference
+
+========================================
+10. FINAL VERIFICATION
+========================================
+
+Verify:
+
+✓ Existing records still work
+✓ Team members render on About page
+✓ Uploaded photos display correctly
+✓ Experience is stored as integer
+✓ Experience renders as "X Years Experience"
+✓ Admin panel uses Team Member terminology
+✓ Responsive layout works
+✓ Single-member layout looks professional
+✓ No remaining references to "Trainer" in the UI
