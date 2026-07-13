@@ -68,21 +68,23 @@ interface Order {
 interface Trainer {
   id: string;
   name: string;
-  title: string;
-  certs: string;
-  experience: string;
+  role: string;
+  certifications: string;
+  experience_years: number;
+  bio: string;
   photo_url: string;
   sort_order: number;
   created_at: string;
 }
 
-type Tab = "courses" | "students" | "orders" | "trainers";
+type Tab = "courses" | "students" | "orders" | "team-members";
 
 const BLANK_TRAINER: Omit<Trainer, "id" | "created_at"> = {
   name: "",
-  title: "",
-  certs: "",
-  experience: "",
+  role: "",
+  certifications: "",
+  experience_years: 0,
+  bio: "",
   photo_url: "",
   sort_order: 0,
 };
@@ -949,7 +951,7 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
   useEffect(() => {
     if (open) {
       setForm(initial
-        ? { name: initial.name, title: initial.title, certs: initial.certs, experience: initial.experience, photo_url: initial.photo_url, sort_order: initial.sort_order }
+        ? { name: initial.name, role: initial.role, certifications: initial.certifications, experience_years: initial.experience_years, bio: initial.bio, photo_url: initial.photo_url, sort_order: initial.sort_order }
         : BLANK_TRAINER);
       setError("");
     }
@@ -963,15 +965,15 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
     setSaving(true);
     setError("");
     try {
-      const url = isEdit ? `/api/admin/trainers/${initial!.id}` : "/api/admin/trainers";
+      const url = isEdit ? `/api/admin/team-members/${initial!.id}` : "/api/admin/team-members";
       const method = isEdit ? "PUT" : "POST";
-      console.log(`[TrainerModal] ${method} ${url}`, JSON.stringify(form));
+      console.log(`[TeamMemberModal] ${method} ${url}`, JSON.stringify(form));
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
         body: JSON.stringify(form),
       });
-      const data = await res.json() as { error?: string; trainer?: unknown };
+      const data = await res.json() as { error?: string; member?: unknown };
       console.log(`[TrainerModal] response ${res.status}:`, data);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status} – save failed`);
       onSaved();
@@ -989,7 +991,7 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Trainer" : "Add Trainer"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Team Member" : "Add Team Member"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5 py-2">
           <div className="space-y-1.5">
@@ -997,27 +999,43 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
             <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Ravi Kumar" required />
           </div>
           <div className="space-y-1.5">
-            <Label>Title / Role *</Label>
-            <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Lead Cloud Trainer" required />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Certifications</Label>
-            <textarea
-              className="w-full min-h-[70px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-              value={form.certs}
-              onChange={(e) => set("certs", e.target.value)}
-              placeholder="e.g. AWS SA, DevOps Professional, Azure Expert"
-            />
+            <Label>Role / Designation *</Label>
+            <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="e.g. Lead Cloud Trainer" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Experience</Label>
-              <Input value={form.experience} onChange={(e) => set("experience", e.target.value)} placeholder="e.g. 12 years" />
+              <Label>Years of Experience</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={form.experience_years}
+                onChange={(e) => set("experience_years", Math.max(0, parseInt(e.target.value) || 0))}
+                placeholder="e.g. 12"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Display Order</Label>
               <Input type="number" min="0" value={form.sort_order} onChange={(e) => set("sort_order", parseInt(e.target.value) || 0)} />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Certifications</Label>
+            <textarea
+              className="w-full min-h-[70px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              value={form.certifications}
+              onChange={(e) => set("certifications", e.target.value)}
+              placeholder="e.g. AWS SA, DevOps Professional, Azure Expert"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Bio</Label>
+            <textarea
+              className="w-full min-h-[80px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              value={form.bio}
+              onChange={(e) => set("bio", e.target.value)}
+              placeholder="Brief professional bio…"
+            />
           </div>
 
           <UploadButton
@@ -1033,7 +1051,7 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : isEdit ? "Save Changes" : "Add Trainer"}
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : isEdit ? "Save Changes" : "Add Team Member"}
             </Button>
           </DialogFooter>
         </form>
@@ -1042,7 +1060,7 @@ function TrainerModal({ open, onClose, initial, auth, onSaved }: TrainerModalPro
   );
 }
 
-// ── Trainers Tab ──────────────────────────────────────────────────────────────
+// ── Team Members Tab ──────────────────────────────────────────────────────────
 
 function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -1058,19 +1076,19 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
     setError("");
     setSetupSql(null);
     try {
-      const res = await fetch("/api/admin/trainers", {
+      const res = await fetch("/api/admin/team-members", {
         headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
       });
-      const data = await res.json() as { trainers?: Trainer[]; error?: string; setupRequired?: boolean; sql?: string };
-      console.log("[TrainersTab] GET /api/admin/trainers →", res.status, data);
+      const data = await res.json() as { members?: Trainer[]; error?: string; setupRequired?: boolean; sql?: string };
+      console.log("[TeamMembersTab] GET /api/admin/team-members →", res.status, data);
       if (!res.ok) {
         if (data.setupRequired && data.sql) setSetupSql(data.sql);
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
-      setTrainers(data.trainers ?? []);
+      setTrainers(data.members ?? []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[TrainersTab] load failed:", msg);
+      console.error("[TeamMembersTab] load failed:", msg);
       setError(msg);
     } finally {
       setLoading(false);
@@ -1080,22 +1098,22 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
   useEffect(() => { load(); }, [load]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this trainer?")) return;
+    if (!confirm("Delete this team member?")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/trainers/${id}`, {
+      const res = await fetch(`/api/admin/team-members/${id}`, {
         method: "DELETE",
         headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
       });
       if (!res.ok) {
         const d = await res.json() as { error?: string };
-        console.error("[TrainersTab] delete failed:", d);
+        console.error("[TeamMembersTab] delete failed:", d);
         throw new Error(d.error ?? `HTTP ${res.status}`);
       }
       setTrainers((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[TrainersTab] handleDelete failed:", msg);
+      console.error("[TeamMembersTab] handleDelete failed:", msg);
       setError(msg);
     } finally {
       setDeletingId(null);
@@ -1106,15 +1124,15 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Trainers</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">{trainers.length} trainer{trainers.length !== 1 ? "s" : ""}</p>
+          <h2 className="text-xl font-bold text-foreground">Team Members</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{trainers.length} team member{trainers.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />Refresh
           </Button>
           <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1.5" />Add Trainer
+            <Plus className="h-4 w-4 mr-1.5" />Add Team Member
           </Button>
         </div>
       </div>
@@ -1132,11 +1150,11 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
       )}
 
       {loading ? (
-        <div className="text-center py-16 text-muted-foreground animate-pulse">Loading trainers…</div>
+        <div className="text-center py-16 text-muted-foreground animate-pulse">Loading team members…</div>
       ) : trainers.length === 0 ? (
         <div className="text-center py-16">
           <GraduationCap className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-muted-foreground">No trainers yet. Add your first trainer.</p>
+          <p className="text-muted-foreground">No team members yet. Add your first team member.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -1144,19 +1162,31 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
             <div key={t.id} className="bg-white dark:bg-card rounded-2xl border border-border p-5 flex flex-col gap-3">
               <div className="flex items-start gap-4">
                 {t.photo_url ? (
-                  <img src={t.photo_url} alt={t.name} className="w-14 h-14 rounded-xl object-cover shrink-0" />
-                ) : (
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-[#23B33A] flex items-center justify-center text-white font-bold text-lg shrink-0">
-                    {t.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                  </div>
-                )}
+                  <img
+                    src={t.photo_url}
+                    alt={t.name}
+                    className="w-14 h-14 rounded-xl object-cover shrink-0"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; (e.currentTarget.nextSibling as HTMLElement | null)?.removeAttribute("style"); }}
+                  />
+                ) : null}
+                <div
+                  className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-[#23B33A] flex items-center justify-center text-white font-bold text-lg shrink-0"
+                  style={t.photo_url ? { display: "none" } : undefined}
+                >
+                  {t.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground leading-tight truncate">{t.name}</p>
-                  <p className="text-xs text-[#23B33A] font-medium mt-0.5 truncate">{t.title}</p>
-                  {t.experience && <p className="text-xs text-muted-foreground mt-1">{t.experience} experience</p>}
+                  <p className="text-xs text-[#23B33A] font-medium mt-0.5 truncate">{t.role}</p>
+                  {t.experience_years > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t.experience_years} {t.experience_years === 1 ? "Year" : "Years"} Experience
+                    </p>
+                  )}
                 </div>
               </div>
-              {t.certs && <p className="text-xs text-muted-foreground line-clamp-2">{t.certs}</p>}
+              {t.certifications && <p className="text-xs text-muted-foreground line-clamp-2">{t.certifications}</p>}
+              {t.bio && <p className="text-xs text-muted-foreground line-clamp-2 italic">{t.bio}</p>}
               <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditing(t); setModalOpen(true); }}>
                   <Pencil className="h-3.5 w-3.5" />
@@ -1254,7 +1284,7 @@ export default function Admin() {
     { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> },
     { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> },
     { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
-    { id: "trainers", label: "Trainers", icon: <GraduationCap className="h-4 w-4" /> },
+    { id: "team-members", label: "Team Members", icon: <GraduationCap className="h-4 w-4" /> },
   ];
 
   return (
@@ -1286,7 +1316,7 @@ export default function Admin() {
         {tab === "courses" && <CoursesTab auth={auth} />}
         {tab === "students" && <StudentsTab auth={auth} />}
         {tab === "orders" && <OrdersTab auth={auth} />}
-        {tab === "trainers" && <TrainersTab auth={auth} />}
+        {tab === "team-members" && <TrainersTab auth={auth} />}
       </div>
     </div>
   );

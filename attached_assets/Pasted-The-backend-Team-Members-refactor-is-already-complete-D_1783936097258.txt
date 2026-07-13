@@ -1,0 +1,150 @@
+The backend Team Members refactor is already complete.
+
+DO NOT modify database schemas, migrations, API routes, Supabase tables, or backend code.
+
+ONLY complete the remaining frontend work identified in the audit.
+
+Required changes:
+
+1. Admin.tsx
+
+Update the Trainer interface:
+
+Replace:
+- title -> role
+- certs -> certifications
+- experience -> experience_years
+
+Add:
+- bio
+
+New interface fields:
+
+{
+  id,
+  name,
+  role,
+  certifications,
+  experience_years,
+  bio,
+  photo_url,
+  sort_order,
+  created_at
+}
+
+2. Update BLANK_TRAINER defaults to match the new fields.
+
+3. Update TrainerModal:
+
+Fields:
+- Name
+- Role / Designation
+- Years of Experience (number input only)
+- Certifications
+- Bio
+- Profile Photo
+- Display Order
+
+Requirements:
+- experience_years must be type="number"
+- min=0
+- integer values only
+- remove old experience text field
+
+4. Update all form bindings:
+
+title -> role
+certs -> certifications
+experience -> experience_years
+
+5. Update all admin API calls:
+
+Replace:
+
+/api/admin/trainers
+
+with
+
+/api/admin/team-members
+
+for:
+- GET
+- POST
+- PUT
+- DELETE
+
+6. Rename all admin UI labels:
+
+Trainers -> Team Members
+Trainer -> Team Member
+Add Trainer -> Add Team Member
+Edit Trainer -> Edit Team Member
+
+7. About.tsx
+
+Update the interface to use:
+
+role
+certifications
+experience_years
+bio
+
+8. Update all card rendering:
+
+Display:
+
+Name
+Role
+Experience
+Certifications
+Bio
+
+Experience formatting:
+
+1 Year Experience
+5 Years Experience
+10 Years Experience
+
+Use singular for 1 year.
+
+9. Update section text:
+
+THE TEAM
+
+Meet Our Team
+
+Subtitle:
+
+"The passionate professionals behind InfoKB's training, operations, student success, and technology initiatives."
+
+10. Layout:
+
+If only 1 member:
+- center card
+- max width 400px
+
+If multiple:
+- 4 columns desktop
+- 2 columns tablet
+- 1 column mobile
+
+11. Photo display:
+
+Use photo_url if available.
+
+Only show initials/avatar fallback when:
+- photo_url is null
+- photo_url is empty
+- image load fails
+
+12. After all changes:
+
+Run a full build.
+Fix all TypeScript errors.
+Verify no frontend references remain to:
+- title
+- certs
+- experience
+- /api/admin/trainers
+
+Provide a summary of changed files and build results.
