@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws";
 import healthRouter from "./health";
 import adminRouter from "./admin";
 
@@ -14,7 +15,7 @@ router.get("/labs", async (_req, res) => {
     const url = process.env["SUPABASE_URL"];
     const key = process.env["SUPABASE_SECRET_KEY"];
     if (!url || !key) { res.json({ labs: [] }); return; }
-    const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+    const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false }, realtime: { transport: ws } });
     const { data, error } = await supabase
       .from("labs")
       .select("*")
@@ -33,7 +34,7 @@ router.get("/labs/:id", async (req, res) => {
     const url = process.env["SUPABASE_URL"];
     const key = process.env["SUPABASE_SECRET_KEY"];
     if (!url || !key) { res.status(404).json({ error: "Not found" }); return; }
-    const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+    const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false }, realtime: { transport: ws } });
     const { data, error } = await supabase
       .from("labs")
       .select("*")

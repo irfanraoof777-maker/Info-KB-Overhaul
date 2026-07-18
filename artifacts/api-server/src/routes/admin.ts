@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import multer from "multer";
+import ws from "ws";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -20,6 +21,7 @@ function getSupabaseAdmin() {
   if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY must be set.");
   return createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
+    realtime: { transport: ws },
   });
 }
 
