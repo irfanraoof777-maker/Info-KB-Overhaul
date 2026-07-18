@@ -1363,22 +1363,19 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
     setSaving(true);
     setError("");
     try {
+      if (!supabase) throw new Error("Supabase is not configured.");
       const payload = {
         ...form,
         duration_days: parseInt(String(form.duration_days), 10) || 1,
         price: parseFloat(String(form.price)) || 0,
         discount_price: form.discount_price === "" || form.discount_price == null ? null : parseFloat(String(form.discount_price)),
       };
-      const url = isEdit ? `/api/admin/labs/${initial!.id}` : "/api/admin/labs";
-      const method = isEdit ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error((d as { error?: string }).error ?? "Save failed");
+      if (isEdit) {
+        const { error: sbErr } = await supabase.from("labs").update(payload).eq("id", initial!.id);
+        if (sbErr) throw new Error(sbErr.message);
+      } else {
+        const { error: sbErr } = await supabase.from("labs").insert(payload);
+        if (sbErr) throw new Error(sbErr.message);
       }
       onSaved();
       onClose();
@@ -1451,13 +1448,9 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
           {/* Image upload */}
           <div className="space-y-3 border border-border rounded-xl p-5 bg-muted/20">
             <p className="text-sm font-semibold text-foreground">Lab Image</p>
-            <UploadButton
-              label="Upload Image"
-              accept="image/*"
+            <LabImageUploadButton
               currentUrl={form.image_url}
               onUploaded={(url) => set("image_url", url)}
-              auth={auth}
-              uploadEndpoint="/api/admin/upload-lab-image"
               onUploadingChange={setImageUploading}
             />
             {form.image_url && (
