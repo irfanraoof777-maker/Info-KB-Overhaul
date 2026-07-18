@@ -631,12 +631,12 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true); setError(""); setSetupSql("");
     try {
-      const res = await fetch("/api/admin/courses", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      const res = await fetch("/api/admin/courses", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         const msg = (d as { error?: string }).error ?? "Failed to load courses.";
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
-          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+          const sr = await fetch("/api/admin/db-status", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
           if (sd.sql) setSetupSql(sd.sql);
         } else { setError(msg); }
@@ -767,12 +767,12 @@ function StudentsTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true); setError(""); setSetupSql("");
     try {
-      const res = await fetch("/api/admin/students", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      const res = await fetch("/api/admin/students", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         const msg = (d as { error?: string }).error ?? "Failed to load.";
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
-          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+          const sr = await fetch("/api/admin/db-status", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
           if (sd.sql) setSetupSql(sd.sql);
         } else { setError(msg); }
@@ -877,12 +877,12 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true); setError(""); setSetupSql("");
     try {
-      const res = await fetch("/api/admin/orders", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      const res = await fetch("/api/admin/orders", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         const msg = (d as { error?: string }).error ?? "Failed to load.";
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
-          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+          const sr = await fetch("/api/admin/db-status", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
           if (sd.sql) setSetupSql(sd.sql);
         } else { setError(msg); }
@@ -1122,6 +1122,7 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
     setSetupSql(null);
     try {
       const res = await fetch("/api/admin/team-members", {
+        cache: "no-store",
         headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
       });
       const data = await res.json() as { members?: Trainer[]; error?: string; setupRequired?: boolean; sql?: string };
@@ -1454,7 +1455,7 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/admin/labs", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      const res = await fetch("/api/admin/labs", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       const d = await res.json() as { labs?: Lab[]; error?: string };
       if (!res.ok) throw new Error(d.error ?? "Failed to load labs.");
       setLabs(d.labs ?? []);
