@@ -1574,12 +1574,11 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
         </div>
       </div>
 
-      {setupSql && <DbSetupBanner sql={setupSql} />}
       {error && <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>}
 
       {loading ? (
         <div className="text-center py-16 text-muted-foreground animate-pulse">Loading labs…</div>
-      ) : labs.length === 0 && !setupSql ? (
+      ) : labs.length === 0 ? (
         <div className="text-center py-16">
           <FlaskConical className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
           <p className="text-muted-foreground">No labs yet.</p>
