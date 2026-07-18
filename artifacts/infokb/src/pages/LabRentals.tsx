@@ -120,16 +120,16 @@ export default function LabRentals() {
       setLoading(true);
       setError("");
       try {
-        if (!supabase) throw new Error("Supabase not configured");
+        if (!supabase) throw new Error("Supabase is not configured (missing environment variables).");
         const { data, error } = await supabase
           .from("labs")
           .select("*")
           .eq("enabled", true)
           .order("created_at", { ascending: false });
-        if (error) throw error;
+        if (error) throw new Error(error.message || JSON.stringify(error));
         setLabs(data ?? []);
-      } catch {
-        setError("Failed to load labs. Please try again later.");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load labs. Please try again later.");
       } finally {
         setLoading(false);
       }

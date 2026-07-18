@@ -20,7 +20,7 @@ import {
   BookOpen, Users, ShoppingCart, LogOut, Plus, Pencil, Trash2,
   RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   Copy, Eye, EyeOff, Upload, X, Loader2, PlusCircle, GraduationCap,
-  FlaskConical, ToggleLeft, ToggleRight,
+  FlaskConical, Power, PowerOff,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -1418,7 +1418,7 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
-              {form.enabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
+              {form.enabled ? <Power className="h-5 w-5" /> : <PowerOff className="h-5 w-5" />}
               {form.enabled ? "Enabled" : "Disabled"}
             </button>
           </div>
@@ -1459,7 +1459,7 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
       const res = await fetch("/api/admin/labs", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        const msg = (d as { error?: string }).error ?? "Failed to load labs.";
+        const msg = (d as { error?: string }).error ?? `Server returned ${res.status} ${res.statusText}`;
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
           const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
@@ -1470,7 +1470,11 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
       const data = await res.json() as { labs: Lab[] };
       setLabs(data.labs ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load.");
+      setError(
+        err instanceof Error
+          ? `Network error: ${err.message}`
+          : "Could not reach the API server. Make sure it is running."
+      );
     } finally { setLoading(false); }
   }, [auth]);
 
@@ -1590,9 +1594,9 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
                         {togglingId === lab.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : lab.enabled ? (
-                          <ToggleRight className="h-3.5 w-3.5" />
+                          <Power className="h-3.5 w-3.5" />
                         ) : (
-                          <ToggleLeft className="h-3.5 w-3.5" />
+                          <PowerOff className="h-3.5 w-3.5" />
                         )}
                         {lab.enabled ? "Enabled" : "Disabled"}
                       </button>
