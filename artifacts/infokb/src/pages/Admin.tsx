@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1250,6 +1251,74 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
   );
 }
 
+// ── Lab Image Upload (direct Supabase Storage — no Express dependency) ────────
+
+function LabImageUploadButton({
+  currentUrl,
+  onUploaded,
+  onUploadingChange,
+}: {
+  currentUrl: string;
+  onUploaded: (url: string) => void;
+  onUploadingChange?: (v: boolean) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (inputRef.current) inputRef.current.value = "";
+    if (!supabase) { setUploadError("Supabase is not configured."); return; }
+
+    setUploading(true);
+    onUploadingChange?.(true);
+    setUploadError("");
+
+    try {
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("lab-images")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw new Error(upErr.message);
+      const { data: { publicUrl } } = supabase.storage.from("lab-images").getPublicUrl(path);
+      onUploaded(publicUrl);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+      onUploadingChange?.(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label>Lab Image</Label>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+        >
+          {uploading
+            ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            : <Upload className="h-4 w-4 mr-1.5" />}
+          {uploading ? "Uploading…" : "Upload Image"}
+        </Button>
+        {currentUrl && (
+          <span className="text-xs text-muted-foreground truncate max-w-[200px]">✓ Image set</span>
+        )}
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      </div>
+      {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+    </div>
+  );
+}
+
 // ── Lab Modal ─────────────────────────────────────────────────────────────────
 
 interface LabModalProps {
@@ -1447,36 +1516,25 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
   const [labs, setLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [setupSql, setSetupSql] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Lab | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true); setError(""); setSetupSql("");
+    setLoading(true); setError("");
     try {
-      const res = await fetch("/api/admin/labs", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        const msg = (d as { error?: string }).error ?? `Server returned ${res.status} ${res.statusText}`;
-        if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
-          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
-          const sd = await sr.json() as { sql?: string };
-          if (sd.sql) setSetupSql(sd.sql);
-        } else { setError(msg); }
-        return;
-      }
-      const data = await res.json() as { labs: Lab[] };
-      setLabs(data.labs ?? []);
+      if (!supabase) throw new Error("Supabase is not configured (missing environment variables).");
+      const { data, error: sbErr } = await supabase
+        .from("labs")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (sbErr) throw new Error(sbErr.message);
+      setLabs(data ?? []);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? `Network error: ${err.message}`
-          : "Could not reach the API server. Make sure it is running."
-      );
+      setError(err instanceof Error ? err.message : "Failed to load labs.");
     } finally { setLoading(false); }
-  }, [auth]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1484,24 +1542,25 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
     if (!confirm("Delete this lab permanently?")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/labs/${id}`, { method: "DELETE", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
-      if (!res.ok) throw new Error("Delete failed");
+      if (!supabase) throw new Error("Supabase not configured.");
+      const { error: sbErr } = await supabase.from("labs").delete().eq("id", id);
+      if (sbErr) throw new Error(sbErr.message);
       await load();
-    } catch { alert("Delete failed. Please try again."); }
+    } catch (err) { alert(err instanceof Error ? err.message : "Delete failed. Please try again."); }
     finally { setDeletingId(null); }
   };
 
   const handleToggle = async (lab: Lab) => {
     setTogglingId(lab.id);
     try {
-      const res = await fetch(`/api/admin/labs/${lab.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
-        body: JSON.stringify({ enabled: !lab.enabled }),
-      });
-      if (!res.ok) throw new Error("Toggle failed");
+      if (!supabase) throw new Error("Supabase not configured.");
+      const { error: sbErr } = await supabase
+        .from("labs")
+        .update({ enabled: !lab.enabled })
+        .eq("id", lab.id);
+      if (sbErr) throw new Error(sbErr.message);
       await load();
-    } catch { alert("Could not update lab status."); }
+    } catch (err) { alert(err instanceof Error ? err.message : "Could not update lab status."); }
     finally { setTogglingId(null); }
   };
 
