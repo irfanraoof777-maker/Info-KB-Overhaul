@@ -1,0 +1,2 @@
+- [Two-service setup](two-service-setup.md) — frontend (port 3000) + Express API (port 8080) both must run; API Server workflow required for /api/* routes
+- [Artifact registration](artifact-registration.md) — artifact.toml exists but listArtifacts() returns []; screenshot tool fails; app works fine via port 3000 workflow

@@ -20,6 +20,7 @@ import {
   BookOpen, Users, ShoppingCart, LogOut, Plus, Pencil, Trash2,
   RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   Copy, Eye, EyeOff, Upload, X, Loader2, PlusCircle, GraduationCap,
+  FlaskConical, ToggleLeft, ToggleRight,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -77,7 +78,29 @@ interface Trainer {
   created_at: string;
 }
 
-type Tab = "courses" | "students" | "orders" | "team-members";
+interface Lab {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  duration_days: number;
+  price: number;
+  discount_price: number | string | null;
+  enabled: boolean;
+  created_at: string;
+}
+
+const BLANK_LAB: Omit<Lab, "id" | "created_at"> = {
+  title: "",
+  description: "",
+  image_url: "",
+  duration_days: 1,
+  price: 0,
+  discount_price: "",
+  enabled: true,
+};
+
+type Tab = "courses" | "students" | "orders" | "team-members" | "lab-rentals";
 
 const BLANK_TRAINER: Omit<Trainer, "id" | "created_at"> = {
   name: "",
@@ -1227,6 +1250,378 @@ function TrainersTab({ auth }: { auth: { u: string; p: string } }) {
   );
 }
 
+// ── Lab Modal ─────────────────────────────────────────────────────────────────
+
+interface LabModalProps {
+  open: boolean;
+  onClose: () => void;
+  initial: Lab | null;
+  auth: { u: string; p: string };
+  onSaved: () => void;
+}
+
+function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
+  const isEdit = !!initial?.id;
+  const [form, setForm] = useState<Omit<Lab, "id" | "created_at">>({ ...BLANK_LAB });
+  const [saving, setSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setForm(initial
+        ? {
+            title: initial.title,
+            description: initial.description,
+            image_url: initial.image_url,
+            duration_days: initial.duration_days,
+            price: initial.price,
+            discount_price: initial.discount_price == null ? "" : initial.discount_price,
+            enabled: initial.enabled,
+          }
+        : { ...BLANK_LAB });
+      setError("");
+    }
+  }, [initial, open]);
+
+  const set = <K extends keyof Omit<Lab, "id" | "created_at">>(k: K, v: Omit<Lab, "id" | "created_at">[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim()) { setError("Lab title is required."); return; }
+    if (imageUploading) { setError("Please wait for the image to finish uploading."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const payload = {
+        ...form,
+        duration_days: parseInt(String(form.duration_days), 10) || 1,
+        price: parseFloat(String(form.price)) || 0,
+        discount_price: form.discount_price === "" || form.discount_price == null ? null : parseFloat(String(form.discount_price)),
+      };
+      const url = isEdit ? `/api/admin/labs/${initial!.id}` : "/api/admin/labs";
+      const method = isEdit ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error ?? "Save failed");
+      }
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit Lab" : "Add New Lab"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-5 py-2">
+
+          <div className="space-y-1.5">
+            <Label>Lab Title *</Label>
+            <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. AWS Cloud Lab Environment" required />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <textarea
+              className="w-full min-h-[100px] rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="Describe what this lab environment includes and who it's for…"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>Duration (Days) *</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={form.duration_days}
+                onChange={(e) => set("duration_days", Math.max(1, parseInt(e.target.value) || 1))}
+                placeholder="e.g. 7"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Price (₹) *</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={(e) => set("price", parseFloat(e.target.value) || 0)}
+                placeholder="e.g. 4999"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Discount Price (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.discount_price === null || form.discount_price === "" ? "" : form.discount_price}
+                onChange={(e) => set("discount_price", e.target.value === "" ? "" : parseFloat(e.target.value) || "")}
+                placeholder="Leave blank for no discount"
+              />
+            </div>
+          </div>
+
+          {/* Image upload */}
+          <div className="space-y-3 border border-border rounded-xl p-5 bg-muted/20">
+            <p className="text-sm font-semibold text-foreground">Lab Image</p>
+            <UploadButton
+              label="Upload Image"
+              accept="image/*"
+              currentUrl={form.image_url}
+              onUploaded={(url) => set("image_url", url)}
+              auth={auth}
+              uploadEndpoint="/api/admin/upload-lab-image"
+              onUploadingChange={setImageUploading}
+            />
+            {form.image_url && (
+              <img
+                src={form.image_url}
+                alt="Lab preview"
+                className="h-24 w-40 rounded-lg object-cover border border-border mt-1"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
+          </div>
+
+          {/* Enable/Disable */}
+          <div className="flex items-center justify-between rounded-xl border border-border p-4">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Lab Status</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {form.enabled ? "Visible to the public" : "Hidden from the public"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => set("enabled", !form.enabled)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                form.enabled
+                  ? "bg-[#23B33A]/10 text-[#23B33A] hover:bg-[#23B33A]/20"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {form.enabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
+              {form.enabled ? "Enabled" : "Disabled"}
+            </button>
+          </div>
+
+          {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={saving || imageUploading}>
+              {saving ? "Saving…" : isEdit ? "Save Changes" : "Add Lab"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Labs Tab ──────────────────────────────────────────────────────────────────
+
+function formatPrice(price: number) {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(price);
+}
+
+function LabsTab({ auth }: { auth: { u: string; p: string } }) {
+  const [labs, setLabs] = useState<Lab[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [setupSql, setSetupSql] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Lab | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(""); setSetupSql("");
+    try {
+      const res = await fetch("/api/admin/labs", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        const msg = (d as { error?: string }).error ?? "Failed to load labs.";
+        if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
+          const sr = await fetch("/api/admin/db-status", { headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+          const sd = await sr.json() as { sql?: string };
+          if (sd.sql) setSetupSql(sd.sql);
+        } else { setError(msg); }
+        return;
+      }
+      const data = await res.json() as { labs: Lab[] };
+      setLabs(data.labs ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load.");
+    } finally { setLoading(false); }
+  }, [auth]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this lab permanently?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/admin/labs/${id}`, { method: "DELETE", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      if (!res.ok) throw new Error("Delete failed");
+      await load();
+    } catch { alert("Delete failed. Please try again."); }
+    finally { setDeletingId(null); }
+  };
+
+  const handleToggle = async (lab: Lab) => {
+    setTogglingId(lab.id);
+    try {
+      const res = await fetch(`/api/admin/labs/${lab.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
+        body: JSON.stringify({ enabled: !lab.enabled }),
+      });
+      if (!res.ok) throw new Error("Toggle failed");
+      await load();
+    } catch { alert("Could not update lab status."); }
+    finally { setTogglingId(null); }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Lab Rentals</h2>
+          <p className="text-sm text-muted-foreground">{labs.length} lab{labs.length !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />Refresh
+          </Button>
+          <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1.5" />Add Lab
+          </Button>
+        </div>
+      </div>
+
+      {setupSql && <DbSetupBanner sql={setupSql} />}
+      {error && <div className="mb-4 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3">{error}</div>}
+
+      {loading ? (
+        <div className="text-center py-16 text-muted-foreground animate-pulse">Loading labs…</div>
+      ) : labs.length === 0 && !setupSql ? (
+        <div className="text-center py-16">
+          <FlaskConical className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+          <p className="text-muted-foreground">No labs yet.</p>
+          <Button size="sm" className="mt-4" onClick={() => { setEditing(null); setModalOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1.5" />Add your first lab
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border overflow-hidden bg-white dark:bg-card">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b border-border">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-foreground/70">Lab</th>
+                  <th className="text-left px-4 py-3 font-medium text-foreground/70 hidden sm:table-cell">Duration</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground/70 hidden md:table-cell">Price</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground/70 hidden md:table-cell">Discount</th>
+                  <th className="text-center px-4 py-3 font-medium text-foreground/70">Status</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground/70">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {labs.map((lab) => (
+                  <tr key={lab.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {lab.image_url ? (
+                          <img src={lab.image_url} alt="" className="h-10 w-14 rounded-md object-cover border border-border shrink-0"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                        ) : (
+                          <div className="h-10 w-14 rounded-md bg-muted flex items-center justify-center shrink-0">
+                            <FlaskConical className="h-4 w-4 text-muted-foreground/40" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-foreground leading-tight">{lab.title}</p>
+                          {lab.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 max-w-xs">{lab.description}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
+                      {lab.duration_days} {lab.duration_days === 1 ? "Day" : "Days"}
+                    </td>
+                    <td className="px-4 py-3 text-right hidden md:table-cell">
+                      {lab.discount_price != null
+                        ? <span className="line-through text-muted-foreground">{formatPrice(Number(lab.price))}</span>
+                        : <span className="font-medium text-foreground">{formatPrice(Number(lab.price))}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right hidden md:table-cell">
+                      {lab.discount_price != null
+                        ? <span className="font-semibold text-[#23B33A]">{formatPrice(Number(lab.discount_price))}</span>
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => handleToggle(lab)}
+                        disabled={togglingId === lab.id}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                          lab.enabled
+                            ? "bg-[#23B33A]/10 text-[#23B33A] hover:bg-[#23B33A]/20"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        {togglingId === lab.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : lab.enabled ? (
+                          <ToggleRight className="h-3.5 w-3.5" />
+                        ) : (
+                          <ToggleLeft className="h-3.5 w-3.5" />
+                        )}
+                        {lab.enabled ? "Enabled" : "Disabled"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
+                          onClick={() => { setEditing(lab); setModalOpen(true); }}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={deletingId === lab.id} onClick={() => handleDelete(lab.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <LabModal open={modalOpen} onClose={() => setModalOpen(false)} initial={editing} auth={auth} onSaved={load} />
+    </div>
+  );
+}
+
 // ── Main Admin Component ──────────────────────────────────────────────────────
 
 export default function Admin() {
@@ -1303,6 +1698,7 @@ export default function Admin() {
   const auth = { u: username, p: password };
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> },
+    { id: "lab-rentals", label: "Lab Rentals", icon: <FlaskConical className="h-4 w-4" /> },
     { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> },
     { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
     { id: "team-members", label: "Team Members", icon: <GraduationCap className="h-4 w-4" /> },
@@ -1335,6 +1731,7 @@ export default function Admin() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {tab === "courses" && <CoursesTab auth={auth} />}
+        {tab === "lab-rentals" && <LabsTab auth={auth} />}
         {tab === "students" && <StudentsTab auth={auth} />}
         {tab === "orders" && <OrdersTab auth={auth} />}
         {tab === "team-members" && <TrainersTab auth={auth} />}

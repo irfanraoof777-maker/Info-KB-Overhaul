@@ -6,6 +6,7 @@ A TypeScript React website for InfoKB — an IT training and certification platf
 
 - **Frontend dev**: `PORT=3000 BASE_PATH=/ pnpm --filter @workspace/infokb run dev`
 - **API server dev**: `PORT=8080 pnpm --filter @workspace/api-server run dev`
+- Both services must be running for full functionality (frontend proxies `/api/*` to port 8080)
 - **Typecheck**: `pnpm run typecheck`
 - **Build all**: `pnpm run build`
 
