@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, X, Loader2, FlaskConical } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { supabase } from "@/lib/supabase";
 
 interface Lab {
   id: string;
@@ -119,10 +120,14 @@ export default function LabRentals() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("/api/labs");
-        if (!res.ok) throw new Error("Failed to load labs");
-        const data = await res.json() as { labs: Lab[] };
-        setLabs(data.labs ?? []);
+        if (!supabase) throw new Error("Supabase not configured");
+        const { data, error } = await supabase
+          .from("labs")
+          .select("*")
+          .eq("enabled", true)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        setLabs(data ?? []);
       } catch {
         setError("Failed to load labs. Please try again later.");
       } finally {

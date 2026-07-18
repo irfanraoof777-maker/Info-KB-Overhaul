@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowLeft, Clock, Tag, ShoppingCart, CheckCircle, Loader2, MessageCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface Lab {
   id: string;
@@ -30,10 +31,15 @@ export default function LabCheckout() {
       setLoading(true);
       setNotFound(false);
       try {
-        const res = await fetch(`/api/labs/${params.id}`);
-        if (!res.ok) { setNotFound(true); return; }
-        const data = await res.json() as { lab: Lab };
-        setLab(data.lab);
+        if (!supabase) { setNotFound(true); return; }
+        const { data, error } = await supabase
+          .from("labs")
+          .select("*")
+          .eq("id", params.id)
+          .eq("enabled", true)
+          .single();
+        if (error || !data) { setNotFound(true); return; }
+        setLab(data as Lab);
       } catch {
         setNotFound(true);
       } finally {
