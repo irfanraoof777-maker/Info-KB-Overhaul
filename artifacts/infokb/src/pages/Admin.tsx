@@ -454,13 +454,16 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
     setSaving(true);
     setError("");
     try {
-      if (!supabase) throw new Error("Supabase is not configured (missing env vars).");
-      if (isEdit) {
-        const { error: sbErr } = await supabase.from("courses").update(form).eq("id", initial!.id);
-        if (sbErr) throw new Error(sbErr.message);
-      } else {
-        const { error: sbErr } = await supabase.from("courses").insert([form]);
-        if (sbErr) throw new Error(sbErr.message);
+      const url = isEdit ? `/api/admin/courses/${initial!.id}` : "/api/admin/courses";
+      const method = isEdit ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error ?? "Save failed");
       }
       onSaved();
       onClose();
@@ -628,17 +631,23 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true); setError(""); setSetupSql("");
     try {
-      if (!supabase) throw new Error("Supabase is not configured (missing env vars).");
-      const { data, error: sbErr } = await supabase
-        .from("courses")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (sbErr) throw new Error(sbErr.message);
-      setCourses(data ?? []);
+      const res = await fetch("/api/admin/courses", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        const msg = (d as { error?: string }).error ?? "Failed to load courses.";
+        if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
+          const sr = await fetch("/api/admin/db-status", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+          const sd = await sr.json() as { sql?: string };
+          if (sd.sql) setSetupSql(sd.sql);
+        } else { setError(msg); }
+        return;
+      }
+      const data = await res.json() as { courses: Course[] };
+      setCourses(data.courses ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load courses.");
+      setError(err instanceof Error ? err.message : "Failed to load.");
     } finally { setLoading(false); }
-  }, []);
+  }, [auth]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -646,11 +655,10 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
     if (!confirm("Delete this course permanently?")) return;
     setDeletingId(id);
     try {
-      if (!supabase) throw new Error("Supabase not configured.");
-      const { error: sbErr } = await supabase.from("courses").delete().eq("id", id);
-      if (sbErr) throw new Error(sbErr.message);
+      const res = await fetch(`/api/admin/courses/${id}`, { method: "DELETE", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      if (!res.ok) throw new Error("Delete failed");
       await load();
-    } catch (err) { alert(err instanceof Error ? err.message : "Delete failed. Please try again."); }
+    } catch { alert("Delete failed. Please try again."); }
     finally { setDeletingId(null); }
   };
 
@@ -1259,9 +1267,7 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
   const [form, setForm] = useState<Omit<Lab, "id" | "created_at">>({ ...BLANK_LAB });
   const [saving, setSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
-  const [imageUploadError, setImageUploadError] = useState("");
   const [error, setError] = useState("");
-  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -1277,35 +1283,11 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
           }
         : { ...BLANK_LAB });
       setError("");
-      setImageUploadError("");
     }
   }, [initial, open]);
 
   const set = <K extends keyof Omit<Lab, "id" | "created_at">>(k: K, v: Omit<Lab, "id" | "created_at">[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
-
-  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (imageInputRef.current) imageInputRef.current.value = "";
-    if (!supabase) { setImageUploadError("Supabase not configured."); return; }
-    setImageUploading(true);
-    setImageUploadError("");
-    try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("lab-images")
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw new Error(upErr.message);
-      const { data: { publicUrl } } = supabase.storage.from("lab-images").getPublicUrl(path);
-      set("image_url", publicUrl);
-    } catch (err) {
-      setImageUploadError(err instanceof Error ? err.message : "Upload failed.");
-    } finally {
-      setImageUploading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1314,20 +1296,21 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
     setSaving(true);
     setError("");
     try {
-      if (!supabase) throw new Error("Supabase is not configured (missing env vars).");
       const payload = {
         ...form,
         duration_days: parseInt(String(form.duration_days), 10) || 1,
         price: parseFloat(String(form.price)) || 0,
         discount_price: form.discount_price === "" || form.discount_price == null ? null : parseFloat(String(form.discount_price)),
       };
-      if (isEdit) {
-        const { error: sbErr } = await supabase.from("labs").update(payload).eq("id", initial!.id);
-        if (sbErr) throw new Error(sbErr.message);
-      } else {
-        const { error: sbErr } = await supabase.from("labs").insert([payload]);
-        if (sbErr) throw new Error(sbErr.message);
-      }
+      const url = isEdit ? `/api/admin/labs/${initial!.id}` : "/api/admin/labs";
+      const method = isEdit ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((d as { error?: string }).error ?? "Save failed");
       onSaved();
       onClose();
     } catch (err) {
@@ -1396,21 +1379,18 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
             </div>
           </div>
 
-          {/* Image upload — direct Supabase Storage, no Express dependency */}
+          {/* Image upload */}
           <div className="space-y-3 border border-border rounded-xl p-5 bg-muted/20">
             <p className="text-sm font-semibold text-foreground">Lab Image</p>
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button type="button" variant="outline" size="sm" disabled={imageUploading}
-                onClick={() => imageInputRef.current?.click()}>
-                {imageUploading
-                  ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  : <Upload className="h-4 w-4 mr-1.5" />}
-                {imageUploading ? "Uploading…" : "Upload Image"}
-              </Button>
-              {form.image_url && <span className="text-xs text-muted-foreground">✓ Image set</span>}
-              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
-            </div>
-            {imageUploadError && <p className="text-xs text-destructive mt-1">{imageUploadError}</p>}
+            <UploadButton
+              label="Upload Image"
+              accept="image/*"
+              currentUrl={form.image_url}
+              onUploaded={(url) => set("image_url", url)}
+              auth={auth}
+              uploadEndpoint="/api/admin/upload-lab-image"
+              onUploadingChange={setImageUploading}
+            />
             {form.image_url && (
               <img
                 src={form.image_url}
@@ -1475,17 +1455,19 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      if (!supabase) throw new Error("Supabase is not configured (missing env vars).");
-      const { data, error: sbErr } = await supabase
-        .from("labs")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (sbErr) throw new Error(sbErr.message);
-      setLabs(data ?? []);
+      const res = await fetch("/api/admin/labs", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        const msg = (d as { error?: string }).error ?? "Failed to load labs.";
+        setError(msg);
+        return;
+      }
+      const data = await res.json() as { labs: Lab[] };
+      setLabs(data.labs ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load labs.");
     } finally { setLoading(false); }
-  }, []);
+  }, [auth.u, auth.p]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1493,9 +1475,11 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
     if (!confirm("Delete this lab permanently?")) return;
     setDeletingId(id);
     try {
-      if (!supabase) throw new Error("Supabase not configured.");
-      const { error: sbErr } = await supabase.from("labs").delete().eq("id", id);
-      if (sbErr) throw new Error(sbErr.message);
+      const res = await fetch(`/api/admin/labs/${id}`, { method: "DELETE", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error ?? "Delete failed.");
+      }
       await load();
     } catch (err) { alert(err instanceof Error ? err.message : "Delete failed. Please try again."); }
     finally { setDeletingId(null); }
@@ -1504,12 +1488,15 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
   const handleToggle = async (lab: Lab) => {
     setTogglingId(lab.id);
     try {
-      if (!supabase) throw new Error("Supabase not configured.");
-      const { error: sbErr } = await supabase
-        .from("labs")
-        .update({ enabled: !lab.enabled })
-        .eq("id", lab.id);
-      if (sbErr) throw new Error(sbErr.message);
+      const res = await fetch(`/api/admin/labs/${lab.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
+        body: JSON.stringify({ enabled: !lab.enabled }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error ?? "Could not update lab status.");
+      }
       await load();
     } catch (err) { alert(err instanceof Error ? err.message : "Could not update lab status."); }
     finally { setTogglingId(null); }
