@@ -1,60 +1,45 @@
-# InfoKB Website
+# [Project name]
 
-A TypeScript React website for InfoKB — an IT training and certification platform with Supabase auth and an admin panel.
+_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
 
 ## Run & Operate
 
-- **Frontend dev**: `PORT=3000 BASE_PATH=/ pnpm --filter @workspace/infokb run dev`
-- **API server dev**: `PORT=8080 pnpm --filter @workspace/api-server run dev`
-- Both services must be running for full functionality (frontend proxies `/api/*` to port 8080)
-- **Typecheck**: `pnpm run typecheck`
-- **Build all**: `pnpm run build`
-
-Required secrets (set in Replit Secrets):
-- `SUPABASE_URL` — Supabase project URL
-- `SUPABASE_PUBLISHABLE_KEY` — Supabase anon/public key
-- `SUPABASE_SECRET_KEY` — Supabase service_role key (server-side only)
-- `ADMIN_USERNAME` / `ADMIN_PASSWORD` — credentials for `/admin` panel
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm run typecheck` — full typecheck across all packages
+- `pnpm run build` — typecheck + build all packages
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
-- **Frontend**: React + Vite + Tailwind CSS + shadcn/ui + Wouter (routing)
-- **Auth**: Supabase (`@supabase/supabase-js`) — email/password, session via Supabase built-in
-- **Backend**: Express 5 (Node 24) — serves `/api/*`
-- **Monorepo**: pnpm workspaces
-- **Build**: esbuild (api-server), Vite (frontend)
+- pnpm workspaces, Node.js 24, TypeScript 5.9
+- API: Express 5
+- DB: PostgreSQL + Drizzle ORM
+- Validation: Zod (`zod/v4`), `drizzle-zod`
+- API codegen: Orval (from OpenAPI spec)
+- Build: esbuild (CJS bundle)
 
 ## Where things live
 
-- `artifacts/infokb/src/` — React frontend
-  - `pages/` — Home, Courses, CourseDetail, About, Contact, Login, Signup, Dashboard, Admin
-  - `components/Navbar.tsx` — auth-aware navbar
-  - `context/AuthContext.tsx` — Supabase session provider
-  - `lib/supabase.ts` — Supabase client (reads `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`)
-- `artifacts/api-server/src/` — Express API
-  - `routes/admin.ts` — `/api/admin/users` GET/DELETE (Basic Auth + SUPABASE_SECRET_KEY)
+_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
 
 ## Architecture decisions
 
-- Vite `envPrefix: ["VITE_", "SUPABASE_"]` exposes `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to the browser without requiring a `VITE_` prefix.
-- Admin panel uses HTTP Basic Auth on every request — credentials stay in React state (sessionStorage not used); the backend validates against `ADMIN_USERNAME`/`ADMIN_PASSWORD` env vars.
-- `SUPABASE_SECRET_KEY` (service_role) is only ever used server-side in the api-server; it is never sent to the browser.
-- Supabase URL is normalized on the client (https:// prepended if scheme is missing).
+_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
 
 ## Product
 
-- Public pages: Home, Courses, Course Detail, About, Contact
-- Auth: `/login` (email+password), `/signup` (with email confirmation support)
-- Protected: `/dashboard` — shows logged-in user's email + logout; redirects to `/login` if not authenticated
-- Admin: `/admin` — protected by ADMIN_USERNAME/ADMIN_PASSWORD; lists all Supabase users with delete capability
+_Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-- Do not break existing pages or styling
-- Use environment variables for all keys, never hardcode
+_Populate as you build — explicit user instructions worth remembering across sessions._
 
 ## Gotchas
 
-- Frontend workflow must include `PORT` and `BASE_PATH` env vars in the run command
-- API server rebuilds on each `dev` start (esbuild); hot reload not supported — restart workflow after backend changes
-- `envPrefix` in vite.config.ts must include `"SUPABASE_"` or those vars won't be visible to the browser bundle
+_Populate as you build — sharp edges, "always run X before Y" rules._
+
+## Pointers
+
+- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
