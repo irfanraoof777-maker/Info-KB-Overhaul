@@ -6,7 +6,6 @@ import {
   type NextFunction,
 } from "express";
 import { createClient } from "@supabase/supabase-js";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import multer from "multer";
 
@@ -359,37 +358,31 @@ router.post("/upload", adminAuth, (req, res, next) => {
     const file = (req as Request & { file?: Express.Multer.File }).file;
     if (!file) { res.status(400).json({ error: "No file provided." }); return; }
 
-    const endpoint = process.env["CLOUDFLARE_R2_ENDPOINT"];
-    const accessKey = process.env["CLOUDFLARE_R2_ACCESS_KEY"];
-    const secretKey = process.env["CLOUDFLARE_R2_SECRET_KEY"];
-    const bucket = process.env["CLOUDFLARE_R2_BUCKET"];
-    const publicUrlBase = process.env["CLOUDFLARE_R2_PUBLIC_URL"];
+    const supabase = getSupabaseAdmin();
+    const BUCKET = "course-assets";
 
-    if (!endpoint || !accessKey || !secretKey || !bucket || !publicUrlBase) {
-      res.status(500).json({ error: "R2 storage is not configured on the server." });
-      return;
+    const { error: bucketErr } = await supabase.storage.createBucket(BUCKET, {
+      public: true,
+      fileSizeLimit: 20 * 1024 * 1024,
+    });
+    if (bucketErr && !bucketErr.message.toLowerCase().includes("already exists")) {
+      console.error("[upload] bucket create error:", bucketErr.message);
     }
 
     const ext = (file.originalname.split(".").pop() ?? "bin").toLowerCase();
-    const key = `uploads/${randomUUID()}.${ext}`;
+    const key = `${randomUUID()}.${ext}`;
 
-    const client = new S3Client({
-      region: "auto",
-      endpoint,
-      credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
-    });
+    const { error: uploadErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(key, file.buffer, { contentType: file.mimetype, upsert: false });
 
-    await client.send(new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    }));
+    if (uploadErr) throw uploadErr;
 
-    const publicUrl = `${publicUrlBase.replace(/\/$/, "")}/${key}`;
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(key);
+    console.log("[upload] uploaded:", key, "→", publicUrl);
     res.json({ publicUrl });
   } catch (err) {
-    console.error("[R2 upload] FAILED:", extractError(err));
+    console.error("[upload] FAILED:", extractError(err));
     res.status(500).json({ error: extractError(err) });
   }
 });
