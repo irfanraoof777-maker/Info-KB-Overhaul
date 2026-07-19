@@ -346,20 +346,22 @@ router.delete("/users/:id", adminAuth, async (req, res) => {
   }
 });
 
-// ── R2 Upload (server-side proxy — course files / course assets only) ────────
-router.post("/upload", adminAuth, (req, res, next) => {
-  upload.single("file")(req, res, (err) => {
-    if (err) { res.status(400).json({ error: err.message }); return; }
-    next();
-  });
-}, async (req, res) => {
+// ── Supabase Storage Upload — returns signed URL for direct browser upload ────
+// POST /upload   body: { fileName, contentType }
+// Response:      { signedUrl, path, publicUrl }
+// The browser then PUTs the file bytes directly to signedUrl (no server proxy).
+router.post("/upload", adminAuth, async (req, res) => {
   try {
-    const file = (req as Request & { file?: Express.Multer.File }).file;
-    if (!file) { res.status(400).json({ error: "No file provided." }); return; }
+    const { fileName, contentType } = (req.body ?? {}) as Record<string, string>;
+    if (!fileName || !contentType) {
+      res.status(400).json({ error: "fileName and contentType are required." });
+      return;
+    }
 
     const supabase = getSupabaseAdmin();
     const BUCKET = "course-assets";
 
+    // Ensure bucket exists (idempotent)
     const { error: bucketErr } = await supabase.storage.createBucket(BUCKET, {
       public: true,
       fileSizeLimit: 20 * 1024 * 1024,
@@ -368,18 +370,15 @@ router.post("/upload", adminAuth, (req, res, next) => {
       console.error("[upload] bucket create error:", bucketErr.message);
     }
 
-    const ext = (file.originalname.split(".").pop() ?? "bin").toLowerCase();
-    const key = `${randomUUID()}.${ext}`;
+    const ext = (fileName.split(".").pop() ?? "bin").toLowerCase();
+    const path = `${randomUUID()}.${ext}`;
 
-    const { error: uploadErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(key, file.buffer, { contentType: file.mimetype, upsert: false });
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
+    if (error) throw error;
 
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(key);
-    console.log("[upload] uploaded:", key, "→", publicUrl);
-    res.json({ publicUrl });
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    console.log("[upload] signed URL created for:", path);
+    res.json({ signedUrl: data.signedUrl, path, publicUrl });
   } catch (err) {
     console.error("[upload] FAILED:", extractError(err));
     res.status(500).json({ error: extractError(err) });

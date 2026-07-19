@@ -158,8 +158,8 @@ function DbSetupBanner({ sql }: { sql: string }) {
 }
 
 // ── File Upload Button ────────────────────────────────────────────────────────
-// uploadEndpoint defaults to /api/admin/upload (R2 — for course assets).
-// Team member photos use /api/admin/upload-team-photo (Supabase Storage).
+// uploadEndpoint defaults to /api/admin/upload (Supabase Storage — signed URL flow).
+// Team member photos use /api/admin/upload-team-photo (Supabase Storage — server-side proxy).
 
 interface UploadButtonProps {
   label: string;
@@ -193,19 +193,34 @@ function UploadButton({ label, accept, currentUrl, onUploaded, auth, uploadEndpo
     setError("");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
+      // Step 1 — ask server for a Supabase signed upload URL
       const res = await fetch(uploadEndpoint, {
         method: "POST",
-        headers: { Authorization: makeBasicAuth(auth.u, auth.p) },
-        body: formData,
+        headers: {
+          Authorization: makeBasicAuth(auth.u, auth.p),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileName: file.name, contentType: file.type }),
       });
 
-      const data = await res.json() as { publicUrl?: string; error?: string };
+      const data = await res.json() as { signedUrl?: string; publicUrl?: string; error?: string };
 
-      if (!res.ok || !data.publicUrl) {
+      if (!res.ok || !data.signedUrl || !data.publicUrl) {
         throw new Error(data.error ?? "Upload failed.");
+      }
+
+      setProgress(30);
+
+      // Step 2 — PUT file bytes directly to Supabase Storage (no server bandwidth)
+      const putRes = await fetch(data.signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!putRes.ok) {
+        const errText = await putRes.text().catch(() => "unknown");
+        throw new Error(`Storage upload failed (${putRes.status}): ${errText}`);
       }
 
       setProgress(100);
