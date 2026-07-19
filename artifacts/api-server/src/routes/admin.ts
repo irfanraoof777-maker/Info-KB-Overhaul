@@ -386,17 +386,17 @@ router.post("/upload", adminAuth, async (req, res) => {
 });
 
 // ── Supabase Storage Upload (team member photos only) ─────────────────────────
-router.post("/upload-team-photo", adminAuth, (req, res, next) => {
-  upload.single("file")(req, res, (err) => {
-    if (err) { res.status(400).json({ error: err.message }); return; }
-    next();
-  });
-}, async (req, res) => {
+// ── Supabase Storage Upload — team member photos (signed URL, same pattern as /upload) ──
+// POST /upload-team-photo   body: { fileName, contentType }
+// Response:                 { signedUrl, path, publicUrl }
+router.post("/upload-team-photo", adminAuth, async (req, res) => {
   try {
-    const file = (req as Request & { file?: Express.Multer.File }).file;
-    if (!file) { res.status(400).json({ error: "No file provided." }); return; }
-
-    if (!file.mimetype.startsWith("image/")) {
+    const { fileName, contentType } = (req.body ?? {}) as Record<string, string>;
+    if (!fileName || !contentType) {
+      res.status(400).json({ error: "fileName and contentType are required." });
+      return;
+    }
+    if (!contentType.startsWith("image/")) {
       res.status(400).json({ error: "Only image files are allowed for team member photos." });
       return;
     }
@@ -404,7 +404,6 @@ router.post("/upload-team-photo", adminAuth, (req, res, next) => {
     const supabase = getSupabaseAdmin();
     const BUCKET = "team-member-photos";
 
-    // Auto-create the public bucket on first use (no-op if it already exists)
     const { error: bucketErr } = await supabase.storage.createBucket(BUCKET, {
       public: true,
       fileSizeLimit: 5 * 1024 * 1024,
@@ -414,19 +413,15 @@ router.post("/upload-team-photo", adminAuth, (req, res, next) => {
       console.error("[upload-team-photo] bucket create error:", bucketErr.message);
     }
 
-    const ext = (file.originalname.split(".").pop() ?? "jpg").toLowerCase();
-    const key = `${randomUUID()}.${ext}`;
+    const ext = (fileName.split(".").pop() ?? "jpg").toLowerCase();
+    const path = `${randomUUID()}.${ext}`;
 
-    const { error: uploadErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(key, file.buffer, { contentType: file.mimetype, upsert: false });
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
+    if (error) throw error;
 
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(key);
-
-    console.log("[upload-team-photo] uploaded:", key, "→", publicUrl);
-    res.json({ publicUrl });
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    console.log("[upload-team-photo] signed URL created for:", path);
+    res.json({ signedUrl: data.signedUrl, path, publicUrl });
   } catch (err) {
     console.error("[upload-team-photo] FAILED:", extractError(err));
     res.status(500).json({ error: extractError(err) });
