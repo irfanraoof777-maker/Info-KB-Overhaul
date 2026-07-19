@@ -1454,19 +1454,30 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
-    try {
-      const res = await fetch("/api/admin/labs", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        const msg = (d as { error?: string }).error ?? "Failed to load labs.";
-        setError(msg);
+    // Retry up to 4 times (1.5 s apart) to recover from the ~600 ms window
+    // where the API server is still compiling before it starts listening.
+    // Without retries, any fetch that lands in that window gets a Vite-proxy
+    // 502 and shows "Failed to load labs." even though the server is healthy.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        if (attempt > 0) await new Promise<void>(r => setTimeout(r, 1500));
+        const res = await fetch("/api/admin/labs", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+        // 502/503/504 = gateway/proxy error while the API server is starting — retry silently
+        if (res.status === 502 || res.status === 503 || res.status === 504) continue;
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          setError((d as { error?: string }).error ?? "Failed to load labs.");
+          setLoading(false);
+          return;
+        }
+        const data = await res.json() as { labs: Lab[] };
+        setLabs(data.labs ?? []);
+        setLoading(false);
         return;
-      }
-      const data = await res.json() as { labs: Lab[] };
-      setLabs(data.labs ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load labs.");
-    } finally { setLoading(false); }
+      } catch { /* network error — retry */ }
+    }
+    setError("Failed to load labs. Click Refresh to try again.");
+    setLoading(false);
   }, [auth.u, auth.p]);
 
   useEffect(() => { load(); }, [load]);
