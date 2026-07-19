@@ -1309,12 +1309,17 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
         headers: { "Content-Type": "application/json", Authorization: makeBasicAuth(auth.u, auth.p) },
         body: JSON.stringify(payload),
       });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((d as { error?: string }).error ?? "Save failed");
+      if (!res.ok) {
+        const raw = await res.text();
+        let errMsg = "";
+        try { errMsg = (JSON.parse(raw) as { error?: string }).error ?? ""; } catch { errMsg = ""; }
+        if (!errMsg) errMsg = `HTTP ${res.status} — ${raw.slice(0, 200).trim() || "(empty response)"}`;
+        throw new Error(errMsg);
+      }
       onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed.");
+      setError(err instanceof Error ? err.message : "Unknown error — please try again.");
     } finally {
       setSaving(false);
     }
@@ -1456,10 +1461,20 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
   const load = useCallback(async () => {
     setLoading(true); setError(""); setSetupSql("");
     try {
-      const res = await fetch("/api/admin/labs", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+      // Retry up to 3 times on 502/503/504 only — these happen when the API
+      // server is still in its ~600 ms build phase after a cold start.
+      // Any other status (401, 500, etc.) surfaces immediately with full detail.
+      let res!: Response;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise<void>(r => setTimeout(r, 1200));
+        res = await fetch("/api/admin/labs", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
+        if (res.status !== 502 && res.status !== 503 && res.status !== 504) break;
+      }
       if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        const msg = (d as { error?: string }).error ?? "Failed to load labs.";
+        const raw = await res.text();
+        let msg = "";
+        try { msg = (JSON.parse(raw) as { error?: string }).error ?? ""; } catch { msg = ""; }
+        if (!msg) msg = `HTTP ${res.status} — ${raw.slice(0, 200).trim() || "(empty response)"}`;
         if (msg.toLowerCase().includes("does not exist") || msg.toLowerCase().includes("relation")) {
           const sr = await fetch("/api/admin/db-status", { cache: "no-store", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
           const sd = await sr.json() as { sql?: string };
@@ -1470,7 +1485,7 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
       const data = await res.json() as { labs: Lab[] };
       setLabs(data.labs ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load.");
+      setError(err instanceof Error ? err.message : "Network error — could not reach the server.");
     } finally { setLoading(false); }
   }, [auth]);
 
@@ -1482,11 +1497,12 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
     try {
       const res = await fetch(`/api/admin/labs/${id}`, { method: "DELETE", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
       if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error((d as { error?: string }).error ?? "Delete failed.");
+        const raw = await res.text();
+        let msg = ""; try { msg = (JSON.parse(raw) as { error?: string }).error ?? ""; } catch { msg = ""; }
+        throw new Error(msg || `Delete failed (HTTP ${res.status})`);
       }
       await load();
-    } catch (err) { alert(err instanceof Error ? err.message : "Delete failed. Please try again."); }
+    } catch (err) { alert(err instanceof Error ? err.message : "Delete failed — please try again."); }
     finally { setDeletingId(null); }
   };
 
@@ -1499,11 +1515,12 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
         body: JSON.stringify({ enabled: !lab.enabled }),
       });
       if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error((d as { error?: string }).error ?? "Could not update lab status.");
+        const raw = await res.text();
+        let msg = ""; try { msg = (JSON.parse(raw) as { error?: string }).error ?? ""; } catch { msg = ""; }
+        throw new Error(msg || `Could not update lab status (HTTP ${res.status})`);
       }
       await load();
-    } catch (err) { alert(err instanceof Error ? err.message : "Could not update lab status."); }
+    } catch (err) { alert(err instanceof Error ? err.message : "Could not update lab status — please try again."); }
     finally { setTogglingId(null); }
   };
 
