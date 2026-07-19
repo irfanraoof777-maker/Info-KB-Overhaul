@@ -18,9 +18,6 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
-import LabRentals from "@/pages/LabRentals";
-import LabDetail from "@/pages/LabDetail";
-import LabCheckout from "@/pages/LabCheckout";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -39,9 +36,6 @@ function Router() {
         <Route path="/signup" component={Signup} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/admin" component={Admin} />
-        <Route path="/lab-rentals" component={LabRentals} />
-        <Route path="/lab-rentals/:id/checkout" component={LabCheckout} />
-        <Route path="/lab-rentals/:id" component={LabDetail} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
         <Route component={NotFound} />

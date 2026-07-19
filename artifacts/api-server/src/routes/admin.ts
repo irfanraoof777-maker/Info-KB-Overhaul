@@ -9,7 +9,6 @@ import { createClient } from "@supabase/supabase-js";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import multer from "multer";
-import ws from "ws";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -75,19 +74,6 @@ function adminAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 export const SETUP_SQL = `-- Run this once in your Supabase Dashboard → SQL Editor → New Query
-
-CREATE TABLE IF NOT EXISTS public.labs (
-  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  title          text NOT NULL DEFAULT '',
-  description    text NOT NULL DEFAULT '',
-  image_url      text NOT NULL DEFAULT '',
-  duration_days  integer NOT NULL DEFAULT 1,
-  price          numeric(10,2) NOT NULL DEFAULT 0,
-  discount_price numeric(10,2),
-  enabled        boolean NOT NULL DEFAULT true,
-  created_at     timestamptz DEFAULT now(),
-  updated_at     timestamptz DEFAULT now()
-);
 
 CREATE TABLE IF NOT EXISTS public.courses (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -207,114 +193,6 @@ router.get("/db-status", adminAuth, async (_req, res) => {
       res.json({ ready: true });
     }
   } catch (err) {
-    res.status(500).json({ error: extractError(err) });
-  }
-});
-
-// ── Labs ─────────────────────────────────────────────────────
-router.get("/labs", adminAuth, async (_req, res) => {
-  try {
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("labs")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    res.json({ labs: data ?? [] });
-  } catch (err) {
-    res.status(500).json({ error: extractError(err) });
-  }
-});
-
-router.post("/labs", adminAuth, async (req, res) => {
-  try {
-    const supabase = getSupabaseAdmin();
-    const body = req.body as Record<string, unknown>;
-    if (body["duration_days"] !== undefined) body["duration_days"] = parseInt(String(body["duration_days"]), 10) || 1;
-    if (body["discount_price"] !== undefined && body["discount_price"] === "") body["discount_price"] = null;
-    const { data, error } = await supabase.from("labs").insert([body]).select().single();
-    if (error) throw error;
-    res.json({ lab: data });
-  } catch (err) {
-    res.status(500).json({ error: extractError(err) });
-  }
-});
-
-router.put("/labs/:id", adminAuth, async (req, res) => {
-  const id = String(req.params.id);
-  try {
-    const supabase = getSupabaseAdmin();
-    const body = req.body as Record<string, unknown>;
-    delete body.id;
-    delete body.created_at;
-    if (body["duration_days"] !== undefined) body["duration_days"] = parseInt(String(body["duration_days"]), 10) || 1;
-    if (body["discount_price"] !== undefined && body["discount_price"] === "") body["discount_price"] = null;
-    const { data, error } = await supabase
-      .from("labs")
-      .update({ ...body, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) throw error;
-    res.json({ lab: data });
-  } catch (err) {
-    res.status(500).json({ error: extractError(err) });
-  }
-});
-
-router.delete("/labs/:id", adminAuth, async (req, res) => {
-  const id = String(req.params.id);
-  try {
-    const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("labs").delete().eq("id", id);
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: extractError(err) });
-  }
-});
-
-// ── Supabase Storage Upload (lab images) ─────────────────────────────────────
-router.post("/upload-lab-image", adminAuth, (req, res, next) => {
-  upload.single("file")(req, res, (err) => {
-    if (err) { res.status(400).json({ error: err.message }); return; }
-    next();
-  });
-}, async (req, res) => {
-  try {
-    const file = (req as Request & { file?: Express.Multer.File }).file;
-    if (!file) { res.status(400).json({ error: "No file provided." }); return; }
-
-    if (!file.mimetype.startsWith("image/")) {
-      res.status(400).json({ error: "Only image files are allowed for lab images." });
-      return;
-    }
-
-    const supabase = getSupabaseAdmin();
-    const BUCKET = "lab-images";
-
-    const { error: bucketErr } = await supabase.storage.createBucket(BUCKET, {
-      public: true,
-      fileSizeLimit: 10 * 1024 * 1024,
-      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
-    });
-    if (bucketErr && !bucketErr.message.toLowerCase().includes("already exists")) {
-      console.error("[upload-lab-image] bucket create error:", bucketErr.message);
-    }
-
-    const ext = (file.originalname.split(".").pop() ?? "jpg").toLowerCase();
-    const key = `${randomUUID()}.${ext}`;
-
-    const { error: uploadErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(key, file.buffer, { contentType: file.mimetype, upsert: false });
-
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(key);
-    res.json({ publicUrl });
-  } catch (err) {
-    console.error("[upload-lab-image] FAILED:", extractError(err));
     res.status(500).json({ error: extractError(err) });
   }
 });
