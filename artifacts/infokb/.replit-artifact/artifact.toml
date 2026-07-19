@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "InfoKB"
+version = "1.0.0"
+id = "artifacts/infokb"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24431
+
+[services.development]
+run = "pnpm --filter @workspace/infokb run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/infokb", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/infokb/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24431"
+BASE_PATH = "/"
