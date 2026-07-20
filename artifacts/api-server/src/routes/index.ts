@@ -84,6 +84,47 @@ router.get("/my-courses", async (req: Request, res: Response) => {
   }
 });
 
+// ── Public: Labs (no auth required — powers the public Lab Rentals pages) ──
+router.get("/labs", async (_req, res) => {
+  try {
+    const url = process.env["SUPABASE_URL"];
+    const key = process.env["SUPABASE_SECRET_KEY"];
+    if (!url || !key) { res.json({ labs: [] }); return; }
+    const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data, error } = await supabase
+      .from("labs")
+      .select("*")
+      .eq("enabled", true)
+      .order("created_at", { ascending: false });
+    if (error) { console.error("[labs] supabase error:", error); res.json({ labs: [] }); return; }
+    res.json({ labs: data ?? [] });
+  } catch (err) {
+    console.error("[labs] error:", err);
+    res.json({ labs: [] });
+  }
+});
+
+router.get("/labs/:id", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const url = process.env["SUPABASE_URL"];
+    const key = process.env["SUPABASE_SECRET_KEY"];
+    if (!url || !key) { res.status(404).json({ error: "Not found." }); return; }
+    const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data, error } = await supabase
+      .from("labs")
+      .select("*")
+      .eq("id", id)
+      .eq("enabled", true)
+      .single();
+    if (error || !data) { res.status(404).json({ error: "Lab not found." }); return; }
+    res.json({ lab: data });
+  } catch (err) {
+    console.error("[labs/:id] error:", err);
+    res.status(500).json({ error: "Failed to fetch lab." });
+  }
+});
+
 // ── Public: Trainers (no auth required — powers the About page) ──
 router.get("/trainers", async (_req, res) => {
   try {

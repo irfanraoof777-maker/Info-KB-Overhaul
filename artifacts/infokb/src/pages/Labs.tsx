@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Search, X, Loader2, Server, Clock, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
 
-// ── DB row shape from Supabase ────────────────────────────────────────────────
+// ── DB row shape ──────────────────────────────────────────────────────────────
 interface DbLab {
   id: string;
   title: string;
@@ -154,36 +153,21 @@ export default function Labs() {
     async function fetchLabs() {
       setLoading(true);
       setError("");
-
-      if (!supabase) {
-        setError("Database connection is not configured.");
-        setLoading(false);
-        return;
-      }
-
-      const { data, error: dbError } = await supabase
-        .from("labs")
-        .select("*")
-        .eq("enabled", true)
-        .order("created_at", { ascending: false });
-
-      if (dbError) {
+      try {
+        const res = await fetch("/api/labs", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json() as { labs: DbLab[] };
+        const rows = data.labs ?? [];
+        setLabs(rows);
+        const uniqueCats = Array.from(new Set(rows.map((l) => l.category).filter(Boolean)));
+        setCategories(["All", ...uniqueCats]);
+      } catch (err) {
+        console.error("[Labs] fetch error:", err);
         setError("Failed to load labs. Please try again later.");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const rows = (data ?? []) as DbLab[];
-      setLabs(rows);
-
-      const uniqueCats = Array.from(
-        new Set(rows.map((l) => l.category).filter(Boolean))
-      );
-      setCategories(["All", ...uniqueCats]);
-
-      setLoading(false);
     }
-
     fetchLabs();
   }, []);
 
@@ -193,8 +177,8 @@ export default function Labs() {
     const matchesSearch =
       !q ||
       lab.title.toLowerCase().includes(q) ||
-      lab.description.toLowerCase().includes(q) ||
-      lab.category.toLowerCase().includes(q);
+      (lab.description ?? "").toLowerCase().includes(q) ||
+      (lab.category ?? "").toLowerCase().includes(q);
     return matchesCategory && matchesSearch;
   });
 
