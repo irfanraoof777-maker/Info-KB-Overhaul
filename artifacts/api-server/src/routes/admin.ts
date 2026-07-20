@@ -87,6 +87,20 @@ CREATE TABLE IF NOT EXISTS public.courses (
   updated_at    timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.labs (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title            text NOT NULL,
+  description      text NOT NULL DEFAULT '',
+  image_url        text NOT NULL DEFAULT '',
+  category         text NOT NULL DEFAULT '',
+  duration         text NOT NULL DEFAULT '',
+  price            numeric(10,2) NOT NULL DEFAULT 0,
+  discounted_price numeric(10,2),
+  enabled          boolean NOT NULL DEFAULT true,
+  created_at       timestamptz DEFAULT now(),
+  updated_at       timestamptz DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.orders (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -251,6 +265,76 @@ router.delete("/courses/:id", adminAuth, async (req, res) => {
   try {
     const supabase = getSupabaseAdmin();
     const { error } = await supabase.from("courses").delete().eq("id", id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+// ── Labs ─────────────────────────────────────────────────────
+router.get("/labs", adminAuth, async (_req, res) => {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("labs")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      const code = String((error as unknown as Record<string, unknown>)["code"] ?? "");
+      if (MISSING_TABLE_CODES.has(code)) {
+        res.status(503).json({ error: "The labs table does not exist yet. Run the setup SQL in Supabase Dashboard → SQL Editor, then click Refresh.", setupRequired: true, sql: SETUP_SQL });
+        return;
+      }
+      throw error;
+    }
+    res.json({ labs: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+router.post("/labs", adminAuth, async (req, res) => {
+  try {
+    const supabase = getSupabaseAdmin();
+    const body = req.body as Record<string, unknown>;
+    const { data, error } = await supabase
+      .from("labs")
+      .insert([body])
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ lab: data });
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+router.put("/labs/:id", adminAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const supabase = getSupabaseAdmin();
+    const body = req.body as Record<string, unknown>;
+    delete body.id;
+    delete body.created_at;
+    const { data, error } = await supabase
+      .from("labs")
+      .update({ ...body, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ lab: data });
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+router.delete("/labs/:id", adminAuth, async (req, res) => {
+  const id = String(req.params.id);
+  try {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from("labs").delete().eq("id", id);
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {

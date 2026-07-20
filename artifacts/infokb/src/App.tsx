@@ -10,6 +10,8 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import Home from "@/pages/Home";
 import Courses from "@/pages/Courses";
 import CourseDetail from "@/pages/CourseDetail";
+import Labs from "@/pages/Labs";
+import LabDetail from "@/pages/LabDetail";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Login from "@/pages/Login";
@@ -30,6 +32,8 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/courses" component={Courses} />
         <Route path="/courses/:slug" component={CourseDetail} />
+        <Route path="/labs" component={Labs} />
+        <Route path="/labs/:id" component={LabDetail} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/login" component={Login} />

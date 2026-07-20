@@ -32,6 +32,20 @@ CREATE TABLE IF NOT EXISTS public.courses (
   updated_at        timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.labs (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title            text NOT NULL,
+  description      text NOT NULL DEFAULT '',
+  image_url        text NOT NULL DEFAULT '',
+  category         text NOT NULL DEFAULT '',
+  duration         text NOT NULL DEFAULT '',
+  price            numeric(10,2) NOT NULL DEFAULT 0,
+  discounted_price numeric(10,2),
+  enabled          boolean NOT NULL DEFAULT true,
+  created_at       timestamptz DEFAULT now(),
+  updated_at       timestamptz DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.orders (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid REFERENCES auth.users(id) ON DELETE SET NULL,
