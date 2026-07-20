@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Search, X, Loader2, Server, Clock, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
-// ── DB row shape ──────────────────────────────────────────────────────────────
+// ── DB row shape from Supabase ────────────────────────────────────────────────
 interface DbLab {
   id: string;
   title: string;
@@ -46,6 +47,8 @@ function formatPrice(p: number) {
   if (p === 0) return "Free";
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p);
 }
+
+// ── Lab Card ──────────────────────────────────────────────────────────────────
 
 interface LabCardProps {
   lab: DbLab;
@@ -153,21 +156,37 @@ export default function Labs() {
     async function fetchLabs() {
       setLoading(true);
       setError("");
-      try {
-        const res = await fetch("/api/labs", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json() as { labs: DbLab[] };
-        const rows = data.labs ?? [];
-        setLabs(rows);
-        const uniqueCats = Array.from(new Set(rows.map((l) => l.category).filter(Boolean)));
-        setCategories(["All", ...uniqueCats]);
-      } catch (err) {
-        console.error("[Labs] fetch error:", err);
-        setError("Failed to load labs. Please try again later.");
-      } finally {
+
+      if (!supabase) {
+        setError("Database connection is not configured.");
         setLoading(false);
+        return;
       }
+
+      const { data, error: dbError } = await supabase
+        .from("labs")
+        .select("*")
+        .eq("enabled", true)
+        .order("created_at", { ascending: false });
+
+      if (dbError) {
+        console.error("[Labs] Supabase error:", dbError);
+        setError("Failed to load labs. Please try again later.");
+        setLoading(false);
+        return;
+      }
+
+      const rows = (data ?? []) as DbLab[];
+      setLabs(rows);
+
+      const uniqueCats = Array.from(
+        new Set(rows.map((l) => l.category).filter(Boolean))
+      );
+      setCategories(["All", ...uniqueCats]);
+
+      setLoading(false);
     }
+
     fetchLabs();
   }, []);
 

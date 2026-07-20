@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
 import { Clock, Tag, ArrowLeft, Loader2, Server } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-// ── DB row shape ──────────────────────────────────────────────────────────────
+// ── DB row shape from Supabase ────────────────────────────────────────────────
 interface DbLab {
   id: string;
   title: string;
@@ -32,18 +33,29 @@ export default function LabDetail() {
     async function load() {
       setLoading(true);
       setNotFound(false);
-      try {
-        const res = await fetch(`/api/labs/${params.id}`, { cache: "no-store" });
-        if (!res.ok) { setNotFound(true); return; }
-        const data = await res.json() as { lab: DbLab };
-        if (!data.lab) { setNotFound(true); return; }
-        setLab(data.lab);
-      } catch {
+
+      if (!supabase) {
         setNotFound(true);
-      } finally {
         setLoading(false);
+        return;
       }
+
+      const { data, error } = await supabase
+        .from("labs")
+        .select("*")
+        .eq("id", params.id)
+        .eq("enabled", true)
+        .single();
+
+      if (error || !data) {
+        console.error("[LabDetail] Supabase error:", error);
+        setNotFound(true);
+      } else {
+        setLab(data as DbLab);
+      }
+      setLoading(false);
     }
+
     load();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [params.id]);
@@ -188,9 +200,7 @@ export default function LabDetail() {
                         const parent = e.currentTarget.parentElement;
                         if (parent) {
                           parent.style.background = "linear-gradient(135deg, #0a192f 0%, #1a3a5c 50%, #0d2137 100%)";
-                          parent.style.display = "flex";
-                          parent.style.alignItems = "center";
-                          parent.style.justifyContent = "center";
+                          parent.style.minHeight = "180px";
                         }
                       }}
                     />

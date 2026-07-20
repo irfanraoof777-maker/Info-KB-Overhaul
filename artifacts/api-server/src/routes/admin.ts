@@ -101,6 +101,12 @@ CREATE TABLE IF NOT EXISTS public.labs (
   updated_at       timestamptz DEFAULT now()
 );
 
+-- Allow the anonymous (public) role to read from labs — same as courses.
+-- Without this, direct Supabase queries from the browser return empty results
+-- if Supabase has RLS auto-enabled on the project.
+ALTER TABLE public.labs DISABLE ROW LEVEL SECURITY;
+GRANT SELECT ON public.labs TO anon, authenticated;
+
 CREATE TABLE IF NOT EXISTS public.orders (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid REFERENCES auth.users(id) ON DELETE SET NULL,
