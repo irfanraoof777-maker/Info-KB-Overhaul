@@ -24,7 +24,7 @@ interface Trainer {
 const milestones = [
   { year: "2013", event: "InfoKB founded in Hyderabad with a focus on enterprise IT training" },
   { year: "2015", event: "Expanded to AWS and cloud certifications as demand surged" },
-  { year: "2018", event: "Partnered with Nutanix and VMware as an authorized training center" },
+  { year: "2018", event: "Expanded our training portfolio to include Nutanix and VMware" },
   { year: "2020", event: "Launched virtual instructor-led training (VILT) to serve students nationwide" },
   { year: "2022", event: "Crossed 6200+ certified professionals across 50+ companies" },
   { year: "2024", event: "Launched Generative AI and advanced ML certification programs" },
