@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
-import { Clock, Tag, ArrowLeft, Loader2, Server } from "lucide-react";
+import { Clock, Tag, ArrowLeft, Loader2, Server, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 // ── DB row shape from Supabase ────────────────────────────────────────────────
@@ -28,6 +28,7 @@ export default function LabDetail() {
   const [lab, setLab] = useState<DbLab | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showPaymentNotice, setShowPaymentNotice] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -233,14 +234,34 @@ export default function LabDetail() {
                   )}
                 </div>
 
-                <a
-                  href={`https://wa.me/919652429090?text=I'm interested in the lab: ${encodeURIComponent(lab.title)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentNotice(true)}
                   className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
                 >
-                  Enquire Now
-                </a>
+                  Purchase Lab
+                </button>
+
+                {showPaymentNotice && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="relative rounded-xl border border-primary/30 bg-primary/5 p-4 pr-10 text-foreground dark:bg-primary/10"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentNotice(false)}
+                      className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      aria-label="Dismiss payment availability notice"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <h2 className="font-bold">Online Payments Coming Soon</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      Secure online checkout for lab rentals will be available shortly.
+                    </p>
+                  </div>
+                )}
 
                 <div className="pt-2 space-y-2 text-sm text-muted-foreground border-t border-border">
                   {lab.duration && (
