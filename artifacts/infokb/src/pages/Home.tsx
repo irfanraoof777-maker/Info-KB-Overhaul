@@ -68,7 +68,7 @@ function mapDbCourse(c: DbCourse, index: number): Course {
 
 const stats = [
   { icon: Award, value: "10+", label: "Years Experience" },
-  { icon: Users, value: "500+", label: "Students Trained" },
+  { icon: Users, value: "6200+", label: "Students Trained" },
   { icon: BookOpen, value: "15+", label: "Courses Offered" },
   { icon: CheckCircle, value: "95%", label: "Success Rate" },
 ];

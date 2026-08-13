@@ -26,7 +26,7 @@ const milestones = [
   { year: "2015", event: "Expanded to AWS and cloud certifications as demand surged" },
   { year: "2018", event: "Partnered with Nutanix and VMware as an authorized training center" },
   { year: "2020", event: "Launched virtual instructor-led training (VILT) to serve students nationwide" },
-  { year: "2022", event: "Crossed 500+ certified professionals across 50+ companies" },
+  { year: "2022", event: "Crossed 6200+ certified professionals across 50+ companies" },
   { year: "2024", event: "Launched Generative AI and advanced ML certification programs" },
 ];
 
@@ -93,7 +93,7 @@ export default function About() {
               <div className="mt-8 grid grid-cols-2 gap-4">
                 {[
                   { label: "Years in Business", value: "10+" },
-                  { label: "Certified Graduates", value: "500+" },
+                  { label: "Certified Graduates", value: "6200+" },
                   { label: "Corporate Clients", value: "50+" },
                   { label: "Course Success Rate", value: "95%" },
                 ].map((stat) => (
