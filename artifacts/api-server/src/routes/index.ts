@@ -15,41 +15,12 @@ function getSupabaseAdmin() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
-// ── POST /enroll — upsert enrollment + record order ──
-router.post("/enroll", async (req: Request, res: Response) => {
-  const { user_id, user_email, course_id, course_name, amount, payment_id } = (req.body ?? {}) as Record<string, unknown>;
-  if (!user_id || !course_id) {
-    res.status(400).json({ error: "user_id and course_id are required." });
-    return;
-  }
-  try {
-    const supabase = getSupabaseAdmin();
-
-    // Upsert enrollment (idempotent)
-    const { error: enrollErr } = await supabase
-      .from("enrollments")
-      .upsert({ user_id, course_id }, { onConflict: "user_id,course_id" });
-    if (enrollErr) throw enrollErr;
-
-    // Record order if payment info provided
-    if (payment_id && amount) {
-      const { error: orderErr } = await supabase.from("orders").insert([{
-        user_id,
-        user_email: user_email ?? "",
-        course_id,
-        course_name: course_name ?? "",
-        amount: Number(amount),
-        status: "completed",
-        payment_id,
-      }]);
-      if (orderErr) console.error("[enroll] order insert error:", orderErr);
-    }
-
-    res.status(200).json({ success: true });
-  } catch (err) {
-    console.error("[enroll] error:", err);
-    res.status(500).json({ error: err instanceof Error ? err.message : "Enrollment failed." });
-  }
+// ── POST /enroll — temporarily unavailable ──
+// Automatic enrollment will be restored only after a server-verified payment
+// webhook exists. The user must then be derived from a verified session;
+// browser-supplied payment claims must never authorize enrollment.
+router.post("/enroll", (_req: Request, res: Response) => {
+  res.status(503).json({ error: "Enrollment is coming soon." });
 });
 
 // ── GET /my-courses — fetch enrolled courses for authenticated user ──
@@ -72,7 +43,7 @@ router.get("/my-courses", async (req: Request, res: Response) => {
 
     const { data, error } = await supabase
       .from("enrollments")
-      .select("course_id, enrolled_at, courses(*)")
+      .select("course_id, enrolled_at, courses(id, name, category, price, duration, difficulty_level, thumbnail_url, trailer_url, description)")
       .eq("user_id", user.id);
 
     if (error) throw error;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useLocation } from "wouter";
+import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
 import { Clock, BarChart2, CheckCircle, ArrowLeft, ChevronDown, ChevronUp, Play, Lock, User, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -21,7 +21,6 @@ interface DbCourse {
   difficulty_level: string;
   duration: string;
   trailer_url: string;
-  full_video_url: string;
   thumbnail_url: string;
 }
 
@@ -40,7 +39,6 @@ interface DisplayCourse {
   duration: string;
   price: number;
   trailerUrl: string;
-  fullVideoUrl: string;
   thumbnailUrl: string;
 }
 
@@ -60,27 +58,8 @@ function mapDb(c: DbCourse): DisplayCourse {
     duration: c.duration,
     price: Number(c.price) || 0,
     trailerUrl: c.trailer_url || "",
-    fullVideoUrl: c.full_video_url || "",
     thumbnailUrl: c.thumbnail_url || "",
   };
-}
-
-// ── Razorpay types ────────────────────────────────────────────────────────────
-declare global {
-  interface Window {
-    Razorpay: new (opts: object) => { open(): void };
-  }
-}
-
-function loadRazorpay(): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (window.Razorpay) { resolve(true); return; }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
 }
 
 // ── Video player ──────────────────────────────────────────────────────────────
@@ -135,15 +114,13 @@ function VideoPlayer({ url, title, locked }: { url: string; title: string; locke
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CourseDetail() {
   const params = useParams<{ slug: string }>();
-  const { user, session } = useAuth();
-  const [, navigate] = useLocation();
+  const { user } = useAuth();
 
   const [course, setCourse] = useState<DisplayCourse | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [openModule, setOpenModule] = useState<number | null>(0);
   const [enrolled, setEnrolled] = useState(false);
-  const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState("");
 
   // Fetch course from Supabase only
@@ -160,7 +137,7 @@ export default function CourseDetail() {
 
       const { data, error } = await supabase
         .from("courses")
-        .select("*")
+        .select("id,name,category,price,description,difficulty,duration,trailer_url,thumbnail_url,created_at,difficulty_level,is_published,slug,updated_at,long_description,highlights,curriculum,who_is_it_for,instructor_name,instructor_bio")
         .eq("id", params.slug)
         .single();
 
@@ -191,82 +168,8 @@ export default function CourseDetail() {
       .then(({ data }) => { if (data) setEnrolled(true); });
   }, [user, course]);
 
-  const handleEnroll = async () => {
-    if (!course) return;
-    if (!user) { navigate("/login"); return; }
-
-    setEnrolling(true);
-    setEnrollError("");
-
-    try {
-      const rzpKeyId = import.meta.env.RAZORPAY_KEY_ID as string;
-
-      if (!rzpKeyId) {
-        const res = await fetch("/api/enroll", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: user.id,
-            user_email: user.email,
-            course_id: course.id,
-            course_name: course.title,
-            amount: course.price,
-            payment_id: "free",
-          }),
-        });
-        if (!res.ok) throw new Error("Enrollment failed");
-        setEnrolled(true);
-        setEnrolling(false);
-        return;
-      }
-
-      const loaded = await loadRazorpay();
-      if (!loaded) throw new Error("Could not load payment gateway. Please try again.");
-
-      const options = {
-        key: rzpKeyId,
-        amount: course.price * 100,
-        currency: "INR",
-        name: "InfoKB",
-        description: course.title,
-        image: "/favicon.ico",
-        prefill: { email: user.email ?? "" },
-        theme: { color: "#005B99" },
-        handler: async (response: { razorpay_payment_id: string }) => {
-          try {
-            const res = await fetch("/api/enroll", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session?.access_token}`,
-              },
-              body: JSON.stringify({
-                user_id: user.id,
-                user_email: user.email,
-                course_id: course.id,
-                course_name: course.title,
-                amount: course.price,
-                payment_id: response.razorpay_payment_id,
-              }),
-            });
-            if (!res.ok) throw new Error("Could not save enrollment.");
-            setEnrolled(true);
-            navigate("/dashboard");
-          } catch (err) {
-            setEnrollError(err instanceof Error ? err.message : "Enrollment failed after payment.");
-          } finally {
-            setEnrolling(false);
-          }
-        },
-        modal: { ondismiss: () => setEnrolling(false) },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      setEnrollError(err instanceof Error ? err.message : "Payment failed.");
-      setEnrolling(false);
-    }
+  const handleEnroll = () => {
+    setEnrollError("Enrollment is coming soon.");
   };
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -443,9 +346,7 @@ export default function CourseDetail() {
             >
               {/* Video / thumbnail */}
               <div className="p-4 border-b border-border bg-zinc-950">
-                {enrolled && course.fullVideoUrl ? (
-                  <VideoPlayer url={course.fullVideoUrl} title={`${course.title} — Full Course`} />
-                ) : course.trailerUrl ? (
+                {course.trailerUrl ? (
                   <div className="relative">
                     <VideoPlayer url={course.trailerUrl} title={`${course.title} — Preview`} />
                     {!enrolled && (
@@ -476,6 +377,17 @@ export default function CourseDetail() {
                   >
                     Enquire Now
                   </a>
+                  <button
+                    type="button"
+                    onClick={handleEnroll}
+                    disabled={enrolled}
+                    className="w-full py-3.5 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
+                  >
+                    {enrolled ? "Enrolled" : "Enroll Now"}
+                  </button>
+                  {enrollError && (
+                    <p className="text-sm text-center text-muted-foreground">{enrollError}</p>
+                  )}
                   <div className="pt-2 space-y-2 text-sm text-muted-foreground">
                     {course.duration && <div className="flex items-center gap-2"><Clock className="h-4 w-4" />{course.duration}</div>}
                     {course.level && <div className="flex items-center gap-2"><BarChart2 className="h-4 w-4" />{course.level} level</div>}

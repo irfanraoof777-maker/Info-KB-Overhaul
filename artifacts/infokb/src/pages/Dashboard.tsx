@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Play, BookOpen, Loader2, Lock, Clock, BarChart2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { Play, BookOpen, Loader2, Clock, BarChart2 } from "lucide-react";
 
 interface EnrolledCourse {
   course_id: string;
@@ -15,10 +16,14 @@ interface EnrolledCourse {
     duration: string;
     difficulty_level: string;
     thumbnail_url: string;
-    full_video_url: string;
     trailer_url: string;
     description: string;
   };
+}
+
+interface PlayingCourse {
+  title: string;
+  url: string;
 }
 
 function VideoModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
@@ -73,7 +78,9 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const [myCourses, setMyCourses] = useState<EnrolledCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
-  const [playingCourse, setPlayingCourse] = useState<EnrolledCourse | null>(null);
+  const [playingCourse, setPlayingCourse] = useState<PlayingCourse | null>(null);
+  const [videoLoadingId, setVideoLoadingId] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
@@ -108,12 +115,43 @@ export default function Dashboard() {
 
   const handleLogout = async () => { await signOut(); navigate("/"); };
 
+  const handleOpenCourse = async (enrolledCourse: EnrolledCourse) => {
+    if (!supabase) return;
+
+    setVideoLoadingId(enrolledCourse.course_id);
+    setVideoError("");
+
+    try {
+      const { data, error } = await supabase
+        .rpc("get_enrolled_course_video", { p_course_id: enrolledCourse.course_id })
+        .single();
+
+      const playable = data as { video_url?: string } | null;
+      if (error || !playable?.video_url) {
+        if (enrolledCourse.courses.trailer_url) {
+          setPlayingCourse({
+            title: enrolledCourse.courses.name,
+            url: enrolledCourse.courses.trailer_url,
+          });
+          return;
+        }
+        throw new Error("unavailable");
+      }
+
+      setPlayingCourse({ title: enrolledCourse.courses.name, url: playable.video_url });
+    } catch {
+      setVideoError("This course video is currently unavailable.");
+    } finally {
+      setVideoLoadingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pt-20">
       {playingCourse && (
         <VideoModal
-          url={playingCourse.courses.full_video_url || playingCourse.courses.trailer_url}
-          title={playingCourse.courses.name}
+          url={playingCourse.url}
+          title={playingCourse.title}
           onClose={() => setPlayingCourse(null)}
         />
       )}
@@ -160,6 +198,7 @@ export default function Dashboard() {
 
         {/* My Courses */}
         <h2 className="text-xl font-bold text-foreground mb-5">My Courses</h2>
+        {videoError && <p className="text-sm text-destructive mb-4">{videoError}</p>}
 
         {coursesLoading ? (
           <div className="flex items-center justify-center py-20 gap-3 text-muted-foreground">
@@ -182,7 +221,6 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {myCourses.map((ec) => {
               const c = ec.courses;
-              const hasVideo = !!(c.full_video_url || c.trailer_url);
               return (
                 <div key={ec.course_id}
                   className="group bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
@@ -195,22 +233,19 @@ export default function Dashboard() {
                         <BookOpen className="h-16 w-16 text-white" />
                       </div>
                     )}
-                    {hasVideo && (
-                      <button
-                        onClick={() => setPlayingCourse(ec)}
-                        className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <div className="h-14 w-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                    <button
+                      onClick={() => handleOpenCourse(ec)}
+                      disabled={videoLoadingId === ec.course_id}
+                      className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <div className="h-14 w-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                        {videoLoadingId === ec.course_id ? (
+                          <Loader2 className="h-6 w-6 text-[#003d6b] animate-spin" />
+                        ) : (
                           <Play className="h-6 w-6 text-[#003d6b] fill-[#003d6b] ml-1" />
-                        </div>
-                      </button>
-                    )}
-                    {!c.full_video_url && (
-                      <div className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-sm rounded-md px-2 py-1 flex items-center gap-1">
-                        <Lock className="h-3 w-3 text-white/60" />
-                        <span className="text-white/60 text-xs">Preview only</span>
+                        )}
                       </div>
-                    )}
+                    </button>
                   </div>
 
                   {/* Body */}
@@ -227,15 +262,15 @@ export default function Dashboard() {
                       {c.difficulty_level && <span className="flex items-center gap-1"><BarChart2 className="h-3 w-3" />{c.difficulty_level}</span>}
                     </div>
                     <button
-                      onClick={() => hasVideo ? setPlayingCourse(ec) : undefined}
-                      disabled={!hasVideo}
-                      className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                        hasVideo
-                          ? "bg-[#23B33A] hover:bg-[#1ca033] text-white"
-                          : "bg-muted text-muted-foreground cursor-not-allowed"
-                      }`}
+                      onClick={() => handleOpenCourse(ec)}
+                      disabled={videoLoadingId === ec.course_id}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 bg-[#23B33A] hover:bg-[#1ca033] text-white disabled:opacity-60"
                     >
-                      {hasVideo ? <><Play className="h-4 w-4 fill-white" /> Watch Course</> : "Video coming soon"}
+                      {videoLoadingId === ec.course_id ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Loading…</>
+                      ) : (
+                        <><Play className="h-4 w-4 fill-white" /> Watch Course</>
+                      )}
                     </button>
                   </div>
                 </div>

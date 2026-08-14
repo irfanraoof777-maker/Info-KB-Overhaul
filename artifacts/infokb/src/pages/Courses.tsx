@@ -20,7 +20,6 @@ interface DbCourse {
   difficulty_level: string;
   duration: string;
   trailer_url: string;
-  full_video_url: string;
   thumbnail_url: string;
   created_at: string;
 }
@@ -96,7 +95,7 @@ export default function Courses() {
 
       const { data, error: dbError } = await supabase
         .from("courses")
-        .select("*")
+        .select("id,name,category,price,description,difficulty,duration,trailer_url,thumbnail_url,created_at,difficulty_level,is_published,slug,updated_at,long_description,highlights,curriculum,who_is_it_for,instructor_name,instructor_bio")
         .order("created_at", { ascending: false });
 
       if (dbError) {
