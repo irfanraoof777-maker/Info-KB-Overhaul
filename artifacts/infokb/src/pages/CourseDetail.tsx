@@ -193,9 +193,6 @@ export default function CourseDetail() {
     );
   }
 
-  const formatPrice = (p: number) =>
-    p === 0 ? "Free" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p);
-
   return (
     <div className="min-h-screen bg-background pt-20">
       {/* Header */}

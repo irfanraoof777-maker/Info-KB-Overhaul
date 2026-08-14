@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { formatUSD } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -530,6 +531,18 @@ function CourseModal({ open, onClose, initial, auth, onSaved }: CourseModalProps
               <Label>Duration</Label>
               <Input value={form.duration} onChange={(e) => set("duration", e.target.value)} placeholder="e.g. 3 Days" />
             </div>
+
+            <div className="space-y-1.5">
+              <Label>Price (USD)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={(e) => set("price", parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -747,6 +760,7 @@ function CoursesTab({ auth }: { auth: { u: string; p: string } }) {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">{c.difficulty_level || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{c.duration || "—"}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-foreground">{formatUSD(Number(c.price))}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0"
@@ -923,7 +937,7 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
           <h2 className="text-lg font-bold text-foreground">Orders</h2>
           <p className="text-sm text-muted-foreground">
             {orders.length} order{orders.length !== 1 ? "s" : ""}
-            {total > 0 && ` · ₹${total.toLocaleString("en-IN")} total`}
+            {total > 0 && ` · ${formatUSD(total)} total`}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
@@ -965,7 +979,7 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
                     <td className="px-4 py-3 text-center hidden sm:table-cell">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(o.status)}`}>{o.status}</span>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">₹{Number(o.amount).toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-foreground">{formatUSD(Number(o.amount))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -973,7 +987,7 @@ function OrdersTab({ auth }: { auth: { u: string; p: string } }) {
                 <tfoot className="bg-muted/30 border-t-2 border-border">
                   <tr>
                     <td colSpan={5} className="px-4 py-3 text-right text-sm font-semibold text-foreground/70">Total Revenue</td>
-                    <td className="px-4 py-3 text-right font-bold text-foreground">₹{total.toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3 text-right font-bold text-foreground">{formatUSD(total)}</td>
                   </tr>
                 </tfoot>
               )}
@@ -1363,7 +1377,7 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
           {/* Price + Discounted Price */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Price (₹)</Label>
+              <Label>Price (USD)</Label>
               <Input
                 type="number"
                 min="0"
@@ -1374,7 +1388,7 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Discounted Price (₹) <span className="text-muted-foreground font-normal">— optional</span></Label>
+              <Label>Discounted Price (USD) <span className="text-muted-foreground font-normal">— optional</span></Label>
               <Input
                 type="number"
                 min="0"
@@ -1556,11 +1570,11 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
                     <td className="px-4 py-3 text-right hidden sm:table-cell">
                       {lab.discounted_price != null ? (
                         <div className="flex flex-col items-end leading-tight">
-                          <span className="font-semibold text-foreground">₹{Number(lab.discounted_price).toLocaleString("en-IN")}</span>
-                          <span className="text-xs text-muted-foreground line-through">₹{Number(lab.price).toLocaleString("en-IN")}</span>
+                          <span className="font-semibold text-foreground">{formatUSD(Number(lab.discounted_price))}</span>
+                          <span className="text-xs text-muted-foreground line-through">{formatUSD(Number(lab.price))}</span>
                         </div>
                       ) : (
-                        <span className="font-semibold text-foreground">₹{Number(lab.price).toLocaleString("en-IN")}</span>
+                        <span className="font-semibold text-foreground">{formatUSD(Number(lab.price))}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center hidden sm:table-cell">

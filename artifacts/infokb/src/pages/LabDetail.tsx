@@ -3,6 +3,7 @@ import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
 import { Clock, Tag, ArrowLeft, Loader2, Server, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { formatUSDPrice } from "@/lib/currency";
 
 // ── DB row shape from Supabase ────────────────────────────────────────────────
 interface DbLab {
@@ -15,11 +16,6 @@ interface DbLab {
   price: number;
   discounted_price: number | null;
   enabled: boolean;
-}
-
-function formatPrice(p: number) {
-  if (p === 0) return "Free";
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p);
 }
 
 export default function LabDetail() {
@@ -170,11 +166,11 @@ export default function LabDetail() {
                   <dd className="flex items-baseline gap-2">
                     {hasDiscount ? (
                       <>
-                        <span className="text-foreground font-bold text-lg">{formatPrice(lab.discounted_price!)}</span>
-                        <span className="text-muted-foreground text-sm line-through">{formatPrice(lab.price)}</span>
+                        <span className="text-foreground font-bold text-lg">{formatUSDPrice(lab.discounted_price!)}</span>
+                        <span className="text-muted-foreground text-sm line-through">{formatUSDPrice(lab.price)}</span>
                       </>
                     ) : (
-                      <span className="text-foreground font-bold text-lg">{formatPrice(lab.price)}</span>
+                      <span className="text-foreground font-bold text-lg">{formatUSDPrice(lab.price)}</span>
                     )}
                   </dd>
                 </div>
@@ -221,11 +217,11 @@ export default function LabDetail() {
                 <div>
                   {hasDiscount ? (
                     <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-2xl font-extrabold text-foreground">{formatPrice(lab.discounted_price!)}</span>
-                      <span className="text-base text-muted-foreground line-through">{formatPrice(lab.price)}</span>
+                      <span className="text-2xl font-extrabold text-foreground">{formatUSDPrice(lab.discounted_price!)}</span>
+                      <span className="text-base text-muted-foreground line-through">{formatUSDPrice(lab.price)}</span>
                     </div>
                   ) : (
-                    <span className="text-2xl font-extrabold text-foreground">{formatPrice(lab.price)}</span>
+                    <span className="text-2xl font-extrabold text-foreground">{formatUSDPrice(lab.price)}</span>
                   )}
                   {hasDiscount && (
                     <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-semibold rounded-full">

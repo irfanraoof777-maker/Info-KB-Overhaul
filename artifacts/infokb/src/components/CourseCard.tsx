@@ -25,11 +25,6 @@ const categoryColors: Record<string, string> = {
   "Programming": "text-green-600",
 };
 
-function formatPrice(price: number) {
-  if (price === 0) return "Free";
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(price);
-}
-
 function StarRating({ rating }: { rating: number }) {
   if (!rating) return null;
   return (

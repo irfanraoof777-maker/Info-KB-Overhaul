@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Search, X, Loader2, Server, Clock, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { formatUSDPrice } from "@/lib/currency";
 
 // ── DB row shape from Supabase ────────────────────────────────────────────────
 interface DbLab {
@@ -42,11 +43,6 @@ const CARD_GRADIENTS = [
   "linear-gradient(135deg, #1b1b2f 0%, #e84393 40%, #f72585 100%)",
   "linear-gradient(135deg, #0c0a09 0%, #78350f 50%, #b45309 100%)",
 ];
-
-function formatPrice(p: number) {
-  if (p === 0) return "Free";
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p);
-}
 
 // ── Lab Card ──────────────────────────────────────────────────────────────────
 
@@ -119,11 +115,11 @@ function LabCard({ lab, index }: LabCardProps) {
           <div className="flex items-center justify-between mb-3">
             {hasDiscount ? (
               <div className="flex items-baseline gap-2">
-                <span className="text-lg font-extrabold text-foreground">{formatPrice(lab.discounted_price!)}</span>
-                <span className="text-sm text-muted-foreground line-through">{formatPrice(lab.price)}</span>
+                <span className="text-lg font-extrabold text-foreground">{formatUSDPrice(lab.discounted_price!)}</span>
+                <span className="text-sm text-muted-foreground line-through">{formatUSDPrice(lab.price)}</span>
               </div>
             ) : (
-              <span className="text-lg font-extrabold text-foreground">{formatPrice(lab.price)}</span>
+              <span className="text-lg font-extrabold text-foreground">{formatUSDPrice(lab.price)}</span>
             )}
           </div>
           <button
