@@ -114,7 +114,7 @@ function VideoPlayer({ url, title, locked }: { url: string; title: string; locke
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CourseDetail() {
   const params = useParams<{ slug: string }>();
-  const { user } = useAuth();
+  const { session } = useAuth();
 
   const [course, setCourse] = useState<DisplayCourse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,17 +156,26 @@ export default function CourseDetail() {
     if (course) document.title = `${course.title} | InfoKB`;
   }, [course]);
 
-  // Check enrollment
+  // Check effective access through the same verified server path as Dashboard.
   useEffect(() => {
-    if (!user || !course || !supabase) return;
-    supabase
-      .from("enrollments")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("course_id", course.id)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setEnrolled(true); });
-  }, [user, course]);
+    if (!session || !course) {
+      setEnrolled(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/dashboard-access", {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then(async (response) => response.ok ? response.json() : { courses: [] })
+      .then((data: { courses?: Array<{ courseId: string; canAccess: boolean }> }) => {
+        if (!cancelled) {
+          setEnrolled(Boolean(data.courses?.some((item) => item.courseId === course.id && item.canAccess)));
+        }
+      })
+      .catch(() => { if (!cancelled) setEnrolled(false); });
+    return () => { cancelled = true; };
+  }, [session, course]);
 
   const handleEnroll = () => {
     setEnrollError("Enrollment is coming soon.");

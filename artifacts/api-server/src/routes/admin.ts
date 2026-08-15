@@ -71,7 +71,9 @@ function adminAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-export const SETUP_SQL = `-- Run this once in your Supabase Dashboard → SQL Editor → New Query
+export const SETUP_SQL = `-- Apply the reviewed, versioned files under supabase/migrations in order.
+-- Runtime setup SQL is no longer supported.
+/* Retired legacy setup reference; intentionally commented out.
 
 CREATE TABLE IF NOT EXISTS public.courses (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -177,7 +179,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trainers' AND column_name='bio') THEN
     ALTER TABLE public.trainers ADD COLUMN bio text NOT NULL DEFAULT '';
   END IF;
-END $;`;
+END $;
+*/`;
 
 // ── Verify credentials (POST with JSON body — no Supabase call) ──────
 router.post("/verify", (req: Request, res: Response) => {

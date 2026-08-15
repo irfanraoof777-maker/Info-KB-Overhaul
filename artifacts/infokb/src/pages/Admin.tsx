@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { formatUSD } from "@/lib/currency";
+import AccessManager from "@/components/admin/AccessManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,7 +94,7 @@ interface Lab {
   created_at: string;
 }
 
-type Tab = "courses" | "students" | "orders" | "team-members" | "lab-rentals";
+type Tab = "courses" | "students" | "orders" | "team-members" | "lab-rentals" | "access";
 
 const BLANK_LAB: Omit<Lab, "id" | "created_at"> = {
   title: "",
@@ -1691,6 +1692,7 @@ export default function Admin() {
     { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
     { id: "team-members", label: "Team Members", icon: <GraduationCap className="h-4 w-4" /> },
     { id: "lab-rentals", label: "Lab Rentals", icon: <Server className="h-4 w-4" /> },
+    { id: "access", label: "Access", icon: <CheckCircle className="h-4 w-4" /> },
   ];
 
   return (
@@ -1724,6 +1726,7 @@ export default function Admin() {
         {tab === "orders" && <OrdersTab auth={auth} />}
         {tab === "team-members" && <TrainersTab auth={auth} />}
         {tab === "lab-rentals" && <LabsTab auth={auth} />}
+        {tab === "access" && <AccessManager auth={auth} />}
       </div>
     </div>
   );

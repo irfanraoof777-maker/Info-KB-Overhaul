@@ -13,15 +13,15 @@ export default async function handler(req, res) {
       supabase.auth.admin.listUsers({ perPage: 1000 }),
       supabase
         .from("enrollments")
-        .select("user_id, enrolled_at, courses(id, name, category, price)"),
+        .select("student_id, enrolled_at, courses(id, name, category, price)"),
     ]);
     if (usersResult.error) throw usersResult.error;
 
     const enrollments = enrollmentsResult.data ?? [];
     const enrollmentsByUser = {};
     for (const e of enrollments) {
-      if (!enrollmentsByUser[e.user_id]) enrollmentsByUser[e.user_id] = [];
-      enrollmentsByUser[e.user_id].push(e);
+      if (!enrollmentsByUser[e.student_id]) enrollmentsByUser[e.student_id] = [];
+      enrollmentsByUser[e.student_id].push(e);
     }
 
     const students = usersResult.data.users.map((u) => ({
