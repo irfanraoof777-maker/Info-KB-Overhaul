@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,8 @@ export default function Dashboard() {
   const [videoLoadingId, setVideoLoadingId] = useState<string | null>(null);
   const [playing, setPlaying] = useState<{ title: string; url: string } | null>(null);
   const [notice, setNotice] = useState("");
+  const [labLoadingId, setLabLoadingId] = useState<string | null>(null);
+  const labLaunchLocked = useRef(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
@@ -148,6 +150,40 @@ export default function Dashboard() {
       return;
     }
     setPlaying({ title: item.course.name, url: result.video_url });
+  };
+
+  const launchLab = async (item: DashboardLab) => {
+    if (!session || !item.canAccess || labLaunchLocked.current) return;
+    labLaunchLocked.current = true;
+    setLabLoadingId(item.rentalId);
+    setNotice("");
+    const launchWindow = window.open("about:blank", "_blank");
+    if (!launchWindow) {
+      setNotice("Allow pop-ups to open the Lab in a new tab.");
+      setLabLoadingId(null);
+      labLaunchLocked.current = false;
+      return;
+    }
+    launchWindow.opener = null;
+    try {
+      const response = await fetch(`/api/lab-rentals/${item.rentalId}/launch`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const result = await response.json() as { launchUrl?: string; error?: string };
+      if (!response.ok || !result.launchUrl) throw new Error(result.error ?? "Lab launch is unavailable.");
+      const target = new URL(result.launchUrl);
+      if (target.protocol !== "http:" && target.protocol !== "https:") throw new Error("Lab launch is unavailable.");
+      launchWindow.location.replace(target.toString());
+    } catch (cause) {
+      launchWindow.close();
+      setNotice("Lab launch is unavailable.");
+      await loadAccess();
+    } finally {
+      labLaunchLocked.current = false;
+      setLabLoadingId(null);
+    }
   };
 
   if (authLoading || !user) {
@@ -199,7 +235,7 @@ export default function Dashboard() {
                 <div className="bg-card rounded-2xl border border-border p-10 text-center"><Server className="h-11 w-11 text-muted-foreground/30 mx-auto mb-3" /><h3 className="font-semibold mb-2">No lab rentals yet</h3><p className="text-sm text-muted-foreground mb-5">Only labs assigned to your account will appear here.</p><Link href="/labs" className="inline-block px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold">Browse Labs</Link></div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {access.labs.map((item) => <div key={item.rentalId} className="bg-card rounded-2xl border border-border overflow-hidden flex flex-col"><div className="h-40 bg-gradient-to-br from-[#0a192f] to-[#1a3a5c]">{item.lab.image_url && <img src={item.lab.image_url} alt={item.lab.title} className="w-full h-full object-cover" />}</div><div className="p-4 flex flex-col flex-1"><div className="flex justify-between gap-2 mb-2"><span className="text-xs font-bold uppercase tracking-widest text-primary">{item.lab.category}</span><span className={`px-2 py-1 rounded-full text-[11px] font-semibold ${STATUS_STYLES[item.status]}`}>{STATUS_LABELS[item.status]}</span></div><h3 className="font-bold text-sm mb-2">{item.lab.title}</h3><p className="text-xs text-muted-foreground line-clamp-2 flex-1">{item.lab.description}</p>{item.expiresAt && <p className="text-xs text-muted-foreground mt-4">Expires {new Date(item.expiresAt).toLocaleString()}</p>}<button onClick={() => setNotice("Lab access setup is coming soon.")} disabled={!item.canAccess} className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold bg-[#23B33A] hover:bg-[#1ca033] text-white disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed">Access Lab</button>{item.canAccess && <p className="text-xs text-center text-muted-foreground mt-2">Lab access setup is coming soon.</p>}</div></div>)}
+                  {access.labs.map((item) => <div key={item.rentalId} className="bg-card rounded-2xl border border-border overflow-hidden flex flex-col"><div className="h-40 bg-gradient-to-br from-[#0a192f] to-[#1a3a5c]">{item.lab.image_url && <img src={item.lab.image_url} alt={item.lab.title} className="w-full h-full object-cover" />}</div><div className="p-4 flex flex-col flex-1"><div className="flex justify-between gap-2 mb-2"><span className="text-xs font-bold uppercase tracking-widest text-primary">{item.lab.category}</span><span className={`px-2 py-1 rounded-full text-[11px] font-semibold ${STATUS_STYLES[item.status]}`}>{STATUS_LABELS[item.status]}</span></div><h3 className="font-bold text-sm mb-2">{item.lab.title}</h3><p className="text-xs text-muted-foreground line-clamp-2 flex-1">{item.lab.description}</p>{item.expiresAt && <p className="text-xs text-muted-foreground mt-4">Expires {new Date(item.expiresAt).toLocaleString()}</p>}<button onClick={() => void launchLab(item)} disabled={!item.canAccess || labLoadingId === item.rentalId} className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold bg-[#23B33A] hover:bg-[#1ca033] text-white disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed flex items-center justify-center gap-2">{labLoadingId === item.rentalId && <Loader2 className="h-4 w-4 animate-spin" />}Launch Lab</button></div></div>)}
                 </div>
               )}
             </section>

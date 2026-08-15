@@ -25,6 +25,8 @@ export default function LabDetail() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showPaymentNotice, setShowPaymentNotice] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -83,6 +85,32 @@ export default function LabDetail() {
   }
 
   const hasDiscount = lab.discounted_price != null && lab.discounted_price < lab.price;
+  const effectivePrice = hasDiscount ? lab.discounted_price! : lab.price;
+  const isFree = Number(effectivePrice) === 0;
+
+  const claimFreeLab = async () => {
+    if (!supabase || claiming) return;
+    setClaiming(true); setClaimError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.assign(`/login?redirect=${encodeURIComponent(`/labs/${lab.id}`)}`);
+        return;
+      }
+      const response = await fetch("/api/lab-rentals/free-claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ labId: lab.id }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Unable to claim this Lab.");
+      window.location.assign("/dashboard");
+    } catch (cause) {
+      setClaimError(cause instanceof Error ? cause.message : "Unable to claim this Lab.");
+    } finally {
+      setClaiming(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pt-20">
@@ -164,14 +192,7 @@ export default function LabDetail() {
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Price</dt>
                   <dd className="flex items-baseline gap-2">
-                    {hasDiscount ? (
-                      <>
-                        <span className="text-foreground font-bold text-lg">{formatUSDPrice(lab.discounted_price!)}</span>
-                        <span className="text-muted-foreground text-sm line-through">{formatUSDPrice(lab.price)}</span>
-                      </>
-                    ) : (
-                      <span className="text-foreground font-bold text-lg">{formatUSDPrice(lab.price)}</span>
-                    )}
+                    <span className="text-foreground font-bold text-lg">{isFree ? "Free" : formatUSDPrice(effectivePrice)}</span>
                   </dd>
                 </div>
               </dl>
@@ -215,30 +236,21 @@ export default function LabDetail() {
               {/* Pricing + CTA */}
               <div className="p-6 space-y-4">
                 <div>
-                  {hasDiscount ? (
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-2xl font-extrabold text-foreground">{formatUSDPrice(lab.discounted_price!)}</span>
-                      <span className="text-base text-muted-foreground line-through">{formatUSDPrice(lab.price)}</span>
-                    </div>
-                  ) : (
-                    <span className="text-2xl font-extrabold text-foreground">{formatUSDPrice(lab.price)}</span>
-                  )}
-                  {hasDiscount && (
-                    <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-semibold rounded-full">
-                      Save {Math.round(((lab.price - lab.discounted_price!) / lab.price) * 100)}%
-                    </span>
-                  )}
+                  <span className="text-2xl font-extrabold text-foreground">{isFree ? "Free" : formatUSDPrice(effectivePrice)}</span>
+                  {hasDiscount && !isFree && <span className="ml-2 text-base text-muted-foreground line-through">{formatUSDPrice(lab.price)}</span>}
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setShowPaymentNotice(true)}
+                  onClick={() => isFree ? void claimFreeLab() : setShowPaymentNotice(true)}
                   className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
+                  disabled={claiming}
                 >
-                  Purchase Lab
+                  {claiming ? <><Loader2 className="h-4 w-4 animate-spin" />Claiming…</> : isFree ? "Get Free Lab" : "Purchase Lab"}
                 </button>
 
-                {showPaymentNotice && (
+                {claimError && <p role="alert" className="text-sm text-destructive">{claimError}</p>}
+                {showPaymentNotice && !isFree && (
                   <div
                     role="status"
                     aria-live="polite"

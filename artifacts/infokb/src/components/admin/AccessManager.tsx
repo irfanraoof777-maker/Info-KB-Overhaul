@@ -30,6 +30,8 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
   const [courseExpiry, setCourseExpiry] = useState("");
   const [labStart, setLabStart] = useState("");
   const [labExpiry, setLabExpiry] = useState("");
+  const [launchRentalId, setLaunchRentalId] = useState("");
+  const [launchUrl, setLaunchUrl] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { startsAt: string; expiresAt: string }>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,7 +61,7 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
 
   useEffect(() => { void load(); }, [load]);
 
-  const request = async (url: string, method: "POST" | "PATCH", body: Record<string, unknown>) => {
+  const request = async (url: string, method: "POST" | "PATCH" | "PUT", body: Record<string, unknown>) => {
     setSaving(true); setError("");
     try {
       const response = await fetch(url, { method, headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -101,6 +103,14 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
         <Input type="datetime-local" value={labStart} onChange={(event) => setLabStart(event.target.value)} aria-label="Lab start" />
         <Input type="datetime-local" value={labExpiry} onChange={(event) => setLabExpiry(event.target.value)} aria-label="Lab expiry" />
         <Button disabled={saving || !studentId || !labId} onClick={() => void request("/api/admin/lab-rentals", "POST", { studentId, labId, startsAt: toUtcIso(labStart), expiresAt: toUtcIso(labExpiry) })}><Plus className="h-4 w-4 mr-2" />Assign</Button>
+      </div>
+      <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+        <div><h4 className="font-semibold">Temporary Guacamole test launch</h4><p className="text-xs text-muted-foreground">Stores only the login-page URL. Never enter usernames, passwords, VM credentials, or connection secrets.</p></div>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-3">
+          <select className={selectClass} value={launchRentalId} onChange={(event) => setLaunchRentalId(event.target.value)}><option value="">Select rental</option>{rentals.filter((item) => item.state !== "cancelled").map((item) => <option key={item.id} value={item.id}>{lab(item.lab_id)} — {email(item.user_id)}</option>)}</select>
+          <Input type="url" placeholder="http://localhost:8080/guacamole/" value={launchUrl} onChange={(event) => setLaunchUrl(event.target.value)} aria-label="Temporary Guacamole login URL" />
+          <Button variant="outline" disabled={saving || !launchRentalId || !/^https?:\/\/\S+$/i.test(launchUrl)} onClick={() => void request(`/api/admin/lab-rentals/${launchRentalId}/launch-configuration`, "PUT", { launchUrl })}>Save Launch URL</Button>
+        </div>
       </div>
       <div className="space-y-3">{rentals.map((item) => {
         const draft = drafts[item.id] ?? { startsAt: toLocalInput(item.starts_at), expiresAt: toLocalInput(item.expires_at) };
