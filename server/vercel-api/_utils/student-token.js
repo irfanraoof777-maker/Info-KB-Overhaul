@@ -1,6 +1,4 @@
-import { getSupabaseAdmin } from "./supabase.js";
-
-export async function requireStudent(req, res) {
+export async function requireVerifiedStudent(req, res, getAdmin) {
   const authorization = req.headers.authorization ?? "";
   if (!authorization.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
@@ -14,7 +12,7 @@ export async function requireStudent(req, res) {
   }
 
   try {
-    const supabase = getSupabaseAdmin();
+    const supabase = getAdmin();
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) {
       res.status(401).json({ error: "Unauthorized" });

@@ -1,5 +1,5 @@
-import { requireStudent } from "./_utils/student-auth.js";
-import { canAccessLab, effectiveLabStatus } from "./_utils/access.js";
+import { requireStudent } from "../server/vercel-api/_utils/student-auth.js";
+import { canAccessLab, effectiveLabStatus } from "../server/vercel-api/_utils/access.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
