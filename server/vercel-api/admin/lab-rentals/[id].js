@@ -64,7 +64,11 @@ export default async function handler(req, res) {
     if (error) throw error;
     return res.status(200).json({ rental: data });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Lab rental request failed.";
+    const message = error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && typeof error.message === "string"
+        ? error.message
+        : "Lab rental request failed.";
     const status = /cannot|requires|already|unsupported|supplied|valid|later|not awaiting|not preparing/.test(message.toLowerCase()) ? 400 : 500;
     return res.status(status).json({ error: message });
   }

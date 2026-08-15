@@ -25,7 +25,11 @@ export default async function handler(req, res) {
       updatedAt: configuration.updated_at,
     } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Launch configuration failed.";
+    const message = error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && typeof error.message === "string"
+        ? error.message
+        : "Launch configuration failed.";
     const status = /not found|cancelled|invalid/.test(message.toLowerCase()) ? 400 : 500;
     return res.status(status).json({ error: message });
   }

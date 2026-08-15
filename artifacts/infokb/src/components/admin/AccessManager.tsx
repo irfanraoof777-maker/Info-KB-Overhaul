@@ -33,6 +33,9 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
   const [launchRentalId, setLaunchRentalId] = useState("");
   const [launchUrl, setLaunchUrl] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { startsAt: string; expiresAt: string }>>({});
+  const [launchDrafts, setLaunchDrafts] = useState<Record<string, string>>({});
+  const [rentalErrors, setRentalErrors] = useState<Record<string, string>>({});
+  const [configuredRentals, setConfiguredRentals] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -61,15 +64,28 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
 
   useEffect(() => { void load(); }, [load]);
 
-  const request = async (url: string, method: "POST" | "PATCH" | "PUT", body: Record<string, unknown>) => {
+  const request = async (url: string, method: "POST" | "PATCH" | "PUT", body: Record<string, unknown>, rentalId?: string) => {
     setSaving(true); setError("");
+    if (rentalId) setRentalErrors((current) => ({ ...current, [rentalId]: "" }));
     try {
       const response = await fetch(url, { method, headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "Access update failed.");
       await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Access update failed."); }
+      return true;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Access update failed.";
+      if (rentalId) setRentalErrors((current) => ({ ...current, [rentalId]: message }));
+      else setError(message);
+      return false;
+    }
     finally { setSaving(false); }
+  };
+
+  const saveLaunchUrl = async (rentalId: string) => {
+    const launchUrl = launchDrafts[rentalId]?.trim() ?? "";
+    const saved = await request(`/api/admin/lab-rentals/${rentalId}/launch-configuration`, "PUT", { launchUrl }, rentalId);
+    if (saved) setConfiguredRentals((current) => ({ ...current, [rentalId]: true }));
   };
 
   const email = (id: string) => students.find((item) => item.id === id)?.email ?? id;
@@ -114,7 +130,33 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
       </div>
       <div className="space-y-3">{rentals.map((item) => {
         const draft = drafts[item.id] ?? { startsAt: toLocalInput(item.starts_at), expiresAt: toLocalInput(item.expires_at) };
-        return <div key={item.id} className="rounded-xl border border-border p-4"><div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3"><div><p className="font-semibold">{lab(item.lab_id)}</p><p className="text-xs text-muted-foreground">{email(item.user_id)}</p></div><span className="text-xs font-semibold uppercase tracking-wide">{item.effective_status.replace("_", " ")}</span><div className="flex flex-wrap gap-2">{item.state === "payment_pending" && <Button size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "start_preparing" })}>Start Preparing</Button>}{item.state === "preparing" && <Button size="sm" disabled={saving || !draft.expiresAt} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "mark_ready", startsAt: draft.startsAt ? toUtcIso(draft.startsAt) : undefined, expiresAt: toUtcIso(draft.expiresAt) })}>Mark Ready</Button>}{item.state !== "cancelled" && <Button variant="outline" size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "cancel" })}>Cancel</Button>}</div></div><div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 mt-4"><Input type="datetime-local" value={draft.startsAt} onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, startsAt: event.target.value } }))} /><Input type="datetime-local" value={draft.expiresAt} onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, expiresAt: event.target.value } }))} /><Button variant="outline" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "update_schedule", startsAt: toUtcIso(draft.startsAt), expiresAt: toUtcIso(draft.expiresAt) })}>Save Dates</Button></div></div>;
+        const launchUrlForRental = launchDrafts[item.id] ?? "";
+        return <div key={item.id} className="rounded-xl border border-border p-4 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div><p className="font-semibold">{lab(item.lab_id)}</p><p className="text-xs text-muted-foreground">{email(item.user_id)}</p></div>
+            <span className="text-xs font-semibold uppercase tracking-wide">{item.effective_status.replace("_", " ")}</span>
+            <div className="flex flex-wrap gap-2">
+              {item.state === "payment_pending" && <Button size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "start_preparing" }, item.id)}>Start Preparing</Button>}
+              {item.state === "preparing" && <Button size="sm" disabled={saving || !draft.expiresAt} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "mark_ready", startsAt: draft.startsAt ? toUtcIso(draft.startsAt) : undefined, expiresAt: toUtcIso(draft.expiresAt) }, item.id)}>Mark Ready</Button>}
+              {item.state !== "cancelled" && <Button variant="outline" size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "cancel" }, item.id)}>Cancel</Button>}
+            </div>
+          </div>
+          {rentalErrors[item.id] && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{rentalErrors[item.id]}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+            <Input type="datetime-local" value={draft.startsAt} aria-label="Lab rental start" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, startsAt: event.target.value } }))} />
+            <Input type="datetime-local" value={draft.expiresAt} aria-label="Lab rental expiry" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, expiresAt: event.target.value } }))} />
+            <Button variant="outline" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "update_schedule", startsAt: toUtcIso(draft.startsAt), expiresAt: toUtcIso(draft.expiresAt) }, item.id)}>Save Dates</Button>
+          </div>
+          {item.state !== "cancelled" && <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+            <label htmlFor={`guacamole-url-${item.id}`} className="text-sm font-semibold">Guacamole test URL</label>
+            <p className="text-xs text-muted-foreground">Store only the login-page URL. Never enter usernames, passwords, tokens, VM credentials, or connection secrets.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+              <Input id={`guacamole-url-${item.id}`} type="url" placeholder="http://192.168.20.128:8080/guacamole/" value={launchUrlForRental} onChange={(event) => { setLaunchDrafts((current) => ({ ...current, [item.id]: event.target.value })); setConfiguredRentals((current) => ({ ...current, [item.id]: false })); }} />
+              <Button variant="outline" disabled={saving || !/^https?:\/\/\S+$/i.test(launchUrlForRental.trim())} onClick={() => void saveLaunchUrl(item.id)}>Save Guacamole URL</Button>
+            </div>
+            {configuredRentals[item.id] && <p role="status" className="text-xs text-emerald-600">Guacamole test URL saved.</p>}
+          </div>}
+        </div>;
       })}{rentals.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No student lab rentals yet.</p>}</div>
     </section>
   </div>;
