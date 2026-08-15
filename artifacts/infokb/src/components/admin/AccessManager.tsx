@@ -62,13 +62,15 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
 
   useEffect(() => { void load(); }, [load]);
 
-  const request = async (url: string, method: "POST" | "PATCH" | "PUT", body: Record<string, unknown>, rentalId?: string) => {
+  const request = async (url: string, method: "POST" | "PATCH" | "PUT", body: Record<string, unknown>, rentalId?: string, failureMessage = "Access update failed.") => {
     setSaving(true); setError("");
     if (rentalId) setRentalErrors((current) => ({ ...current, [rentalId]: "" }));
     try {
       const response = await fetch(url, { method, headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Access update failed.");
+      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      const data = contentType.includes("application/json") ? await response.json() as { error?: string } : null;
+      if (!response.ok) throw new Error(data?.error ?? failureMessage);
+      if (!data) throw new Error(failureMessage);
       await load();
       return true;
     } catch (cause) {
@@ -135,7 +137,7 @@ export default function AccessManager({ auth }: { auth: { u: string; p: string }
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
             <Input type="datetime-local" value={draft.startsAt} aria-label="Lab rental start" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, startsAt: event.target.value } }))} />
             <Input type="datetime-local" value={draft.expiresAt} aria-label="Lab rental expiry" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, expiresAt: event.target.value } }))} />
-            <Button variant="outline" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "update_schedule", startsAt: toUtcIso(draft.startsAt), expiresAt: toUtcIso(draft.expiresAt) }, item.id)}>Save Dates</Button>
+            <Button variant="outline" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "update_schedule", startsAt: toUtcIso(draft.startsAt), expiresAt: toUtcIso(draft.expiresAt) }, item.id, "Unable to update the Lab schedule.")}>Save Dates</Button>
           </div>
           {item.state !== "cancelled" && <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
             <label htmlFor={`guacamole-url-${item.id}`} className="text-sm font-semibold">Guacamole test URL</label>

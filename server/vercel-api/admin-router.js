@@ -2,7 +2,7 @@ import { setCors } from "./_utils/auth.js";
 import labRentalLaunchConfiguration from "./admin/lab-rentals/launch-configuration.js";
 
 export function normalizedAdminPath(req) {
-  const requested = req.query?.path;
+  const requested = req.query?.adminPath ?? req.query?.path;
   const raw = Array.isArray(requested)
     ? requested.join("/")
     : typeof requested === "string"

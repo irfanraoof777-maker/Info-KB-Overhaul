@@ -12,6 +12,9 @@ test("Mark Ready sends the explicit authenticated Admin PATCH and shows card-loc
   assert.match(accessManager, /rentalErrors\[item\.id\][\s\S]+role="alert"/);
   assert.match(rentalHandler, /supabase\.rpc\("admin_update_lab_rental"/);
   assert.match(rentalHandler, /typeof error\.message === "string"/);
+  assert.match(accessManager, /response\.headers\.get\("content-type"\)/);
+  assert.match(accessManager, /contentType\.includes\("application\/json"\)/);
+  assert.match(accessManager, /Unable to update the Lab schedule\./);
 });
 
 test("each active rental can save a credential-free Guacamole test URL", () => {
