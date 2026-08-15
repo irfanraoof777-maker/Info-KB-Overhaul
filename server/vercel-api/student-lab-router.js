@@ -3,7 +3,7 @@ import { requireStudent } from "./_utils/student-auth.js";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizedPath(req) {
-  const requested = req.query?.path;
+  const requested = req.query?.studentLabPath ?? req.query?.path;
   const raw = Array.isArray(requested)
     ? requested.join("/")
     : typeof requested === "string"
@@ -21,11 +21,12 @@ function safeRental(row) {
   };
 }
 
-export default async function studentLabRouter(req, res) {
+export function createStudentLabRouter(authenticate = requireStudent) {
+  return async function studentLabRouter(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   const path = normalizedPath(req);
-  const auth = await requireStudent(req, res);
+  const auth = await authenticate(req, res);
   if (!auth) return;
 
   try {
@@ -48,10 +49,10 @@ export default async function studentLabRouter(req, res) {
       return res.status(200).json({ rental: safeRental(rental) });
     }
 
-    const launchMatch = path.match(/^([0-9a-f-]+)\/launch$/i);
-    if (launchMatch && UUID_PATTERN.test(launchMatch[1])) {
+    const accessMatch = path.match(/^([0-9a-f-]+)\/access$/i);
+    if (accessMatch && UUID_PATTERN.test(accessMatch[1])) {
       const { data, error } = await auth.supabase.rpc("get_authorized_lab_launch", {
-        p_student_id: auth.user.id, p_rental_id: launchMatch[1],
+        p_student_id: auth.user.id, p_rental_id: accessMatch[1],
       });
       if (error) {
         if (error.message?.toLowerCase().includes("unavailable")) return res.status(403).json({ error: "Lab launch is unavailable." });
@@ -59,11 +60,14 @@ export default async function studentLabRouter(req, res) {
       }
       const launch = Array.isArray(data) ? data[0] : data;
       if (!launch?.launch_url) return res.status(403).json({ error: "Lab launch is unavailable." });
-      return res.status(200).json({ provider: launch.provider, launchUrl: launch.launch_url });
+      return res.status(200).json({ launchUrl: launch.launch_url });
     }
     return res.status(404).json({ error: "Not found" });
   } catch (error) {
     console.error("[student-labs] request failed", error);
     return res.status(500).json({ error: "Unable to complete the Lab request." });
   }
+  };
 }
+
+export default createStudentLabRouter();

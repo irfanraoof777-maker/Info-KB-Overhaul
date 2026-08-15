@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { createStudentLabRouter } from "../server/vercel-api/student-lab-router.js";
 import { createAdminRouter } from "../server/vercel-api/admin-router.js";
 import { checkBasicAuth } from "../server/vercel-api/_utils/auth.js";
 import { requireVerifiedStudent } from "../server/vercel-api/_utils/student-token.js";
@@ -124,4 +125,65 @@ test("router dispatches OPTIONS and preserves PATCH CORS", async () => {
   await router({ method: "OPTIONS", url: "/api/admin/courses", query: { path: ["courses"] } }, res);
   assert.equal(res.statusCode, 200);
   assert.match(res.headers["Access-Control-Allow-Methods"], /PATCH/);
+});
+
+test("student access rewrite dispatches POST with the exact realistic rental UUID", async () => {
+  const rentalId = "8f6f91a8-2618-4e75-a662-f916fbdb7d4e";
+  const config = JSON.parse(readFileSync("vercel.json", "utf8"));
+  assert.ok(config.rewrites.some((rewrite) =>
+    rewrite.source === "/api/lab-rentals/:id/access"
+      && rewrite.destination === "/api/lab-rentals/free-claim?studentLabPath=:id/access"
+  ));
+
+  let rpcCall;
+  const router = createStudentLabRouter(async () => ({
+    user: { id: "student-123" },
+    supabase: {
+      rpc: async (name, args) => {
+        rpcCall = { name, args };
+        return { data: [{ provider: "guacamole_test", launch_url: "https://example.test/guacamole/" }], error: null };
+      },
+    },
+  }));
+  const res = response();
+  await router({
+    method: "POST",
+    url: `/api/lab-rentals/free-claim?studentLabPath=${rentalId}/access`,
+    headers: { authorization: "Bearer verified-token" },
+    query: { path: ["free-claim"], studentLabPath: `${rentalId}/access` },
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { launchUrl: "https://example.test/guacamole/" });
+  assert.deepEqual(rpcCall, {
+    name: "get_authorized_lab_launch",
+    args: { p_student_id: "student-123", p_rental_id: rentalId },
+  });
+});
+
+test("student access route still requires authentication", async () => {
+  const rentalId = "8f6f91a8-2618-4e75-a662-f916fbdb7d4e";
+  const router = createStudentLabRouter();
+  const res = response();
+  await router({
+    method: "POST",
+    url: `/api/lab-rentals/free-claim?studentLabPath=${rentalId}/access`,
+    headers: {},
+    query: { path: ["free-claim"], studentLabPath: `${rentalId}/access` },
+  }, res);
+  assert.equal(res.statusCode, 401);
+  assert.deepEqual(res.body, { error: "Unauthorized" });
+});
+
+test("student router preserves unknown-route 404 behavior", async () => {
+  const router = createStudentLabRouter(async () => ({ user: { id: "student-123" }, supabase: {} }));
+  const res = response();
+  await router({
+    method: "POST",
+    url: "/api/lab-rentals/free-claim?studentLabPath=unknown",
+    headers: { authorization: "Bearer verified-token" },
+    query: { path: ["free-claim"], studentLabPath: "unknown" },
+  }, res);
+  assert.equal(res.statusCode, 404);
+  assert.deepEqual(res.body, { error: "Not found" });
 });

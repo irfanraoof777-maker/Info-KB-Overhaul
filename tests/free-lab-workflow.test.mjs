@@ -18,7 +18,7 @@ test("free claims use authoritative price and a full student-Lab unique boundary
 test("Dashboard pre-opens and safely cleans up the authorized launch tab", () => {
   const dashboard = readFileSync("artifacts/infokb/src/pages/Dashboard.tsx", "utf8");
   const openAt = dashboard.indexOf('window.open("about:blank", "_blank")');
-  const fetchAt = dashboard.indexOf('fetch(`/api/lab-rentals/${item.rentalId}/launch`');
+  const fetchAt = dashboard.indexOf('fetch(`/api/lab-rentals/${item.rentalId}/access`');
   assert.ok(openAt >= 0 && openAt < fetchAt);
   assert.match(dashboard, /launchWindow\.opener = null/);
   assert.match(dashboard, /if \(!launchWindow\)[\s\S]+return;/);
@@ -38,10 +38,11 @@ test("browser roles cannot reach private launch data or server-only RPCs", () =>
 });
 
 test("student endpoints derive identity from verified bearer authentication", () => {
-  assert.match(studentRouter, /requireStudent\(req, res\)/);
+  assert.match(studentRouter, /createStudentLabRouter\(authenticate = requireStudent\)/);
+  assert.match(studentRouter, /authenticate\(req, res\)/);
   assert.match(studentRouter, /p_student_id: auth\.user\.id/);
   assert.match(studentRouter, /path === "free-claim"/);
-  assert.match(studentRouter, /\/launch\$/);
+  assert.match(studentRouter, /\/access\$/);
 });
 
 test("Admin Lab transitions preserve the deployed action contract", () => {

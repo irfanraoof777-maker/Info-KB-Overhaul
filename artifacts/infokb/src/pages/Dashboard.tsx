@@ -166,7 +166,7 @@ export default function Dashboard() {
     }
     launchWindow.opener = null;
     try {
-      const response = await fetch(`/api/lab-rentals/${item.rentalId}/launch`, {
+      const response = await fetch(`/api/lab-rentals/${item.rentalId}/access`, {
         method: "POST",
         cache: "no-store",
         headers: { Authorization: `Bearer ${session.access_token}` },
