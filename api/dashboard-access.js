@@ -24,6 +24,8 @@ export default async function handler(req, res) {
         .from("lab_rentals")
         .select("id, lab_id, state, starts_at, expires_at, ready_at, cancelled_at, created_at")
         .eq("user_id", auth.user.id)
+        .in("state", ["payment_pending", "preparing", "ready"])
+        .or(`state.in.(payment_pending,preparing),and(state.eq.ready,expires_at.gt.${nowIso})`)
         .order("created_at", { ascending: false }),
     ]);
 

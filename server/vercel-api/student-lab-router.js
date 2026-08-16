@@ -1,4 +1,5 @@
 import { requireStudent } from "./_utils/student-auth.js";
+import { sendFreeLabNotification } from "./_utils/free-lab-notification.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -46,6 +47,18 @@ export function createStudentLabRouter(authenticate = requireStudent) {
       }
       const rental = Array.isArray(data) ? data[0] : data;
       if (!rental) throw new Error("Free claim returned no rental.");
+      if (rental.newly_created === true) {
+        try {
+          const { data: lab, error: labError } = await auth.supabase.from("labs")
+            .select("title, duration").eq("id", rental.lab_id).maybeSingle();
+          if (labError || !lab) throw new Error("Lab notification details are unavailable.");
+          const result = await sendFreeLabNotification({ rental, user: auth.user, lab });
+          if (!result.sent) console.warn("[free-lab-notification] notification skipped for rental", rental.id, result.reason);
+        } catch (notificationError) {
+          console.error("[free-lab-notification] notification failed for rental", rental.id,
+            notificationError instanceof Error ? notificationError.message : "unknown error");
+        }
+      }
       return res.status(200).json({ rental: safeRental(rental) });
     }
 
