@@ -216,7 +216,7 @@ export default function Labs() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            Train anywhere, practice everywhere?your virtual lab for real-world IT mastery.
+            Train anywhere, practice everywhere&mdash;your virtual lab for real-world IT mastery.
           </motion.p>
           <motion.p
             className="text-white/70 text-base max-w-xl mx-auto"
