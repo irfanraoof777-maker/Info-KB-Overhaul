@@ -25,6 +25,7 @@ export default function LabDetail() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showPaymentNotice, setShowPaymentNotice] = useState(false);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState("");
 
@@ -135,10 +136,6 @@ export default function LabDetail() {
             {lab.title}
           </motion.h1>
 
-          {lab.description && (
-            <p className="text-white/70 text-base max-w-2xl mb-6">{lab.description}</p>
-          )}
-
           <div className="flex flex-wrap gap-5">
             {lab.duration && (
               <div className="flex items-center gap-2 text-white/80 text-sm">
@@ -243,11 +240,23 @@ export default function LabDetail() {
                 <button
                   type="button"
                   onClick={() => isFree ? void claimFreeLab() : setShowPaymentNotice(true)}
-                  className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
-                  disabled={claiming}
+                  className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] disabled:bg-[#23B33A]/50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
+                  disabled={claiming || !hasAcceptedTerms}
                 >
                   {claiming ? <><Loader2 className="h-4 w-4 animate-spin" />Claiming…</> : isFree ? "Get Free Lab" : "Purchase Lab"}
                 </button>
+                <div className="space-y-3 rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" checked={hasAcceptedTerms} onChange={(event) => setHasAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#23B33A]" />
+                    <span>I have read and agree to the InfoKB <Link href="/lab-rental-terms" className="font-medium text-primary underline underline-offset-4 hover:text-primary/80">Lab Rental Terms &amp; Conditions</Link>.</span>
+                  </label>
+                  <p>By purchasing this lab, you agree to the InfoKB <Link href="/lab-rental-terms" className="font-medium text-primary underline underline-offset-4 hover:text-primary/80">Lab Rental Terms &amp; Conditions</Link>.</p>
+                </div>
+
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground dark:bg-primary/10">
+                  <h2 className="font-bold text-foreground">Lab Access Notice</h2>
+                  <p className="mt-1 leading-relaxed">Lab environments may require manual preparation and configuration after your purchase or request is received. Access may therefore not be available immediately. Once your lab environment is ready, access details will be provided through your Info-KB dashboard and/or your registered email address.</p>
+                </div>
 
                 {claimError && <p role="alert" className="text-sm text-destructive">{claimError}</p>}
                 {showPaymentNotice && !isFree && (

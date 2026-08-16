@@ -20,6 +20,7 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import LabRentalTerms from "@/pages/LabRentalTerms";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function Router() {
         <Route path="/courses/:slug" component={CourseDetail} />
         <Route path="/labs" component={Labs} />
         <Route path="/labs/:id" component={LabDetail} />
+        <Route path="/lab-rental-terms" component={LabRentalTerms} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/login" component={Login} />
