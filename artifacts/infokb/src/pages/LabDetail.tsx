@@ -136,10 +136,6 @@ export default function LabDetail() {
             {lab.title}
           </motion.h1>
 
-          {lab.description && (
-            <p className="text-white/70 text-base max-w-2xl mb-6">{lab.description}</p>
-          )}
-
           <div className="flex flex-wrap gap-5">
             {lab.duration && (
               <div className="flex items-center gap-2 text-white/80 text-sm">
