@@ -34,7 +34,6 @@ export default function Footer() {
               {[
                 { label: "Home", href: "/" },
                 { label: "Courses", href: "/courses" },
-                { label: "Lab Rental Terms & Conditions", href: "/lab-rental-terms" },
                 { label: "About Us", href: "/about" },
                 { label: "Contact", href: "/contact" },
               ].map((link) => (

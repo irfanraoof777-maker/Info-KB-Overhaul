@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Search, X, Loader2, Server, Clock, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
@@ -211,10 +211,18 @@ export default function Labs() {
             Lab Rentals
           </motion.h1>
           <motion.p
-            className="text-white/70 text-base max-w-xl mx-auto"
+            className="text-white text-lg sm:text-xl font-semibold max-w-2xl mx-auto mb-3"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            Train anywhere, practice everywhere?your virtual lab for real-world IT mastery.
+          </motion.p>
+          <motion.p
+            className="text-white/70 text-base max-w-xl mx-auto"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
           >
             Hands-on virtual lab environments for Cloud, DevOps, Cybersecurity, and more. Practice in real infrastructure without any setup.
           </motion.p>
@@ -342,6 +350,12 @@ export default function Labs() {
           </>
         )}
       </div>
+
+        <div className="pt-10 text-center">
+          <Link href="/lab-rental-terms" className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary">
+            Lab Rental Terms &amp; Conditions
+          </Link>
     </div>
+      </div>
   );
 }
