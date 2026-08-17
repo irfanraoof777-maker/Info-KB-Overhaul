@@ -1,5 +1,4 @@
 import { requireStudent } from "./_utils/student-auth.js";
-import { FX_BUFFER_PERCENT, getUsdInrRate, payableUsdPrice, usdToBufferedInrPaise, usdToInrPaise } from "./_utils/usd-inr-rate.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const OPEN_ORDER_STATUSES = ["creating", "created", "provider_error"];
@@ -11,6 +10,18 @@ export function toInrPaise(amount) {
   const paise = BigInt(match[1]) * 100n + BigInt((match[2] ?? "").padEnd(2, "0"));
   if (paise > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("India pricing is outside the supported range.");
   return Number(paise);
+}
+
+export function payableInrPrice(lab) {
+  const regular = lab?.price_inr;
+  if (regular === null || regular === undefined) throw new Error("India pricing is not configured for this Lab.");
+  const regularPaise = toInrPaise(regular);
+  const discount = lab.discounted_price_inr;
+  if (discount !== null && discount !== undefined) {
+    const discountPaise = toInrPaise(discount);
+    if (discountPaise > 0 && discountPaise < regularPaise) return { amount: discountPaise, regularPriceInr: regular, discountedPriceInr: discount };
+  }
+  return { amount: regularPaise, regularPriceInr: regular, discountedPriceInr: null };
 }
 
 export function isCurrentRental(rental, now = new Date()) {
@@ -67,15 +78,15 @@ export function createRazorpayLabOrderHandler({ authenticate = requireStudent, r
     try {
       const { data: lab, error: labError } = await auth.supabase
         .from("labs")
-        .select("id, title, enabled, price_usd, discounted_price_usd")
+        .select("id, title, enabled, price_inr, discounted_price_inr")
         .eq("id", labId)
         .eq("enabled", true)
         .maybeSingle();
       if (labError) throw labError;
       if (!lab) return res.status(404).json({ error: "Lab is unavailable." });
 
-      const pricing = payableUsdPrice(lab);
-      if (Number(pricing.usdAmount) === 0) return res.status(400).json({ error: "Free Labs must use the separate free-Lab flow." });
+      const pricing = payableInrPrice(lab);
+      if (pricing.amount === 0) return res.status(400).json({ error: "Free Labs must use the separate free-Lab flow." });
 
       const { data: rentals, error: rentalError } = await auth.supabase
         .from("lab_rentals")
@@ -100,17 +111,11 @@ export function createRazorpayLabOrderHandler({ authenticate = requireStudent, r
       if (existingError) throw existingError;
 
       if (!order) {
-        const fx = await getUsdInrRate({ request, now: () => now().getTime() });
-        const amountMinor = usdToBufferedInrPaise(pricing.usdAmount, fx.rate);
-        const baseInrAmount = (usdToInrPaise(pricing.usdAmount, fx.rate) / 100).toFixed(2);
         const id = randomUuid();
         const receipt = `lpo_${id.replaceAll("-", "")}`;
         const { data, error } = await auth.supabase.from("lab_payment_orders").insert([{
           id, student_id: auth.user.id, lab_id: labId, provider: "razorpay", market: "IN", currency: "INR",
-          amount_minor: amountMinor, regular_price_inr: null, discounted_price_inr: null,
-          source_usd_amount: pricing.usdAmount, usd_price_type: pricing.usdPriceType, usd_inr_rate: fx.rate,
-          fx_buffer_percent: FX_BUFFER_PERCENT, base_inr_amount: baseInrAmount,
-          fx_provider: fx.provider, fx_rate_timestamp: fx.rateTimestamp, conversion_created_at: fx.fetchedAt,
+          amount_minor: pricing.amount, regular_price_inr: pricing.regularPriceInr, discounted_price_inr: pricing.discountedPriceInr,
           status: "creating", receipt,
         }]).select("id, receipt, amount_minor, currency, razorpay_order_id, status").single();
         if (error) {
