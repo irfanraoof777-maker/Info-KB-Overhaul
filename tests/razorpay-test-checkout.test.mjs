@@ -30,9 +30,11 @@ test("terms gate, USD catalog display, and free-Lab behavior remain intact", () 
   assert.match(page, /\/api\/lab-rentals\/free-claim/);
 });
 
-test("client checkout callback is temporary and never fulfills payment or access", () => {
+test("client checkout submits only Razorpay callback fields for server verification and never grants access", () => {
   assert.match(page, /setCheckoutResult\(checkoutResponse\)/);
-  assert.match(page, /Test payment received\. Verification pending\./);
+  assert.match(page, /\/api\/lab-payments\/razorpay\/verify/);
+  assert.match(page, /body: JSON\.stringify\(checkoutResponse\)/);
+  assert.match(page, /Payment verified\. Your Lab request is now pending preparation\./);
   assert.match(page, /ondismiss: \(\) => setCheckoutStatus\("Checkout dismissed\./);
   assert.match(page, /script\.onerror/);
   assert.doesNotMatch(page, /lab_rentals|lab_payment_orders|dashboard-access|payment.*paid/i);

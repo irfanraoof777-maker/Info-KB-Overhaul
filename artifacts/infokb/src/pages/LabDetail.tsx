@@ -187,7 +187,22 @@ export default function LabDetail() {
         prefill: session.user.email ? { email: session.user.email } : undefined,
         handler: (checkoutResponse: RazorpayCheckoutResponse) => {
           setCheckoutResult(checkoutResponse);
-          setCheckoutStatus("Test payment received. Verification pending.");
+          setCheckoutStatus("Test payment received. Verifying securely…");
+          void (async () => {
+            try {
+              const verification = await fetch("/api/lab-payments/razorpay/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+                body: JSON.stringify(checkoutResponse),
+              });
+              const result = await verification.json().catch(() => ({})) as { error?: string; state?: string };
+              if (!verification.ok || result.state !== "preparing") throw new Error(result.error ?? "Payment verification is pending. Please check your dashboard shortly.");
+              setCheckoutStatus("Payment verified. Your Lab request is now pending preparation.");
+            } catch (cause) {
+              setPurchaseError(cause instanceof Error ? cause.message : "Payment verification is pending. Please check your dashboard shortly.");
+              setCheckoutStatus("Payment received. We are waiting for secure verification.");
+            }
+          })();
         },
         modal: { ondismiss: () => setCheckoutStatus("Checkout dismissed. No payment or lab access has been confirmed.") },
         theme: { color: "#005B99" },
