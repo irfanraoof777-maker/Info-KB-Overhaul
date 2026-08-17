@@ -1,11 +1,50 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
-import { Clock, Tag, ArrowLeft, Loader2, Server, X } from "lucide-react";
+import { Clock, Tag, ArrowLeft, Loader2, Server } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { formatUSDPrice } from "@/lib/currency";
 
 // ── DB row shape from Supabase ────────────────────────────────────────────────
+interface RazorpayCheckoutResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayCheckoutInstance { open: () => void; }
+
+interface RazorpayOrderResponse {
+  keyId: string;
+  razorpayOrderId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  labTitle: string;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => RazorpayCheckoutInstance;
+  }
+}
+
+let razorpayScriptPromise: Promise<void> | null = null;
+
+function loadRazorpayCheckout(): Promise<void> {
+  if (window.Razorpay) return Promise.resolve();
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+  razorpayScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.dataset.razorpayCheckout = "true";
+    script.onload = () => window.Razorpay ? resolve() : reject(new Error("Razorpay Checkout did not load."));
+    script.onerror = () => { razorpayScriptPromise = null; reject(new Error("Razorpay Checkout could not be loaded. Please try again.")); };
+    document.head.appendChild(script);
+  });
+  return razorpayScriptPromise;
+}
 interface DbLab {
   id: string;
   title: string;
@@ -24,7 +63,10 @@ export default function LabDetail() {
   const [lab, setLab] = useState<DbLab | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [showPaymentNotice, setShowPaymentNotice] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState("");
+  const [checkoutStatus, setCheckoutStatus] = useState("");
+  const [, setCheckoutResult] = useState<RazorpayCheckoutResponse | null>(null);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState("");
@@ -110,6 +152,52 @@ export default function LabDetail() {
       setClaimError(cause instanceof Error ? cause.message : "Unable to claim this Lab.");
     } finally {
       setClaiming(false);
+    }
+  };
+
+  const purchaseLab = async () => {
+    if (!supabase || purchasing || !hasAcceptedTerms) return;
+    setPurchasing(true); setPurchaseError(""); setCheckoutStatus(""); setCheckoutResult(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.assign(`/login?redirect=${encodeURIComponent(`/labs/${lab.id}`)}`);
+        return;
+      }
+      const response = await fetch("/api/lab-payments/razorpay/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ labId: lab.id }),
+      });
+      const result = await response.json().catch(() => ({})) as { order?: RazorpayOrderResponse; error?: string };
+      if (!response.ok || !result.order) throw new Error(result.error ?? "Unable to create a payment order.");
+      const order = result.order;
+      if (!order.keyId || !order.razorpayOrderId || !Number.isSafeInteger(order.amount) || order.amount <= 0 || order.currency !== "INR") {
+        throw new Error("The payment order response is invalid.");
+      }
+      await loadRazorpayCheckout();
+      if (!window.Razorpay) throw new Error("Razorpay Checkout did not load.");
+      const checkout = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "InfoKB",
+        description: order.labTitle,
+        order_id: order.razorpayOrderId,
+        prefill: session.user.email ? { email: session.user.email } : undefined,
+        handler: (checkoutResponse: RazorpayCheckoutResponse) => {
+          setCheckoutResult(checkoutResponse);
+          setCheckoutStatus("Test payment received. Verification pending.");
+        },
+        modal: { ondismiss: () => setCheckoutStatus("Checkout dismissed. No payment or lab access has been confirmed.") },
+        theme: { color: "#005B99" },
+      });
+      setCheckoutStatus(`Razorpay will charge ?${(order.amount / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} INR.`);
+      checkout.open();
+    } catch (cause) {
+      setPurchaseError(cause instanceof Error ? cause.message : "Unable to start checkout.");
+    } finally {
+      setPurchasing(false);
     }
   };
 
@@ -239,11 +327,11 @@ export default function LabDetail() {
 
                 <button
                   type="button"
-                  onClick={() => isFree ? void claimFreeLab() : setShowPaymentNotice(true)}
+                  onClick={() => isFree ? void claimFreeLab() : void purchaseLab()}
                   className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] disabled:bg-[#23B33A]/50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
-                  disabled={claiming || !hasAcceptedTerms}
+                  disabled={claiming || purchasing || !hasAcceptedTerms}
                 >
-                  {claiming ? <><Loader2 className="h-4 w-4 animate-spin" />Claiming…</> : isFree ? "Get Free Lab" : "Purchase Lab"}
+                  {claiming || purchasing ? <><Loader2 className="h-4 w-4 animate-spin" />{isFree ? "Claiming�" : "Preparing checkout�"}</> : isFree ? "Get Free Lab" : "Purchase Lab"}
                 </button>
                 <div className="space-y-3 rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground">
                   <label className="flex items-start gap-3 cursor-pointer">
@@ -259,27 +347,8 @@ export default function LabDetail() {
                 </div>
 
                 {claimError && <p role="alert" className="text-sm text-destructive">{claimError}</p>}
-                {showPaymentNotice && !isFree && (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    className="relative rounded-xl border border-primary/30 bg-primary/5 p-4 pr-10 text-foreground dark:bg-primary/10"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setShowPaymentNotice(false)}
-                      className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      aria-label="Dismiss payment availability notice"
-                    >
-                      <X className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <h2 className="font-bold">Online Payments Coming Soon</h2>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                      Secure online checkout for lab rentals will be available shortly.
-                    </p>
-                  </div>
-                )}
-
+                {purchaseError && <p role="alert" className="text-sm text-destructive">{purchaseError}</p>}
+                {checkoutStatus && !isFree && <p role="status" aria-live="polite" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground dark:bg-primary/10">{checkoutStatus}</p>}
                 <div className="pt-2 space-y-2 text-sm text-muted-foreground border-t border-border">
                   {lab.duration && (
                     <div className="flex items-center gap-2">
