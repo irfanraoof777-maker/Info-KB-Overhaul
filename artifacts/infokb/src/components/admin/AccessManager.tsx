@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { ChevronDown, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -8,148 +8,57 @@ interface Course { id: string; name: string }
 interface Lab { id: string; title: string }
 interface Enrollment { id: string; student_id: string; course_id: string; status: string; starts_at: string; expires_at: string | null }
 interface Rental { id: string; user_id: string; lab_id: string; state: string; effective_status: string; starts_at: string | null; expires_at: string | null }
+type RentalView = "pending" | "active" | "history";
 
 const basic = (user: string, password: string) => `Basic ${btoa(`${user}:${password}`)}`;
 const toUtcIso = (value: string) => value ? new Date(value).toISOString() : null;
-const toLocalInput = (value: string | null) => {
-  if (!value) return "";
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+const toLocalInput = (value: string | null) => value ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60_000).toISOString().slice(0, 16) : "";
+const isCurrentReady = (rental: Rental, now = Date.now()) => rental.state === "ready" && Boolean(rental.expires_at && new Date(rental.expires_at).getTime() > now);
+const rentalViewFor = (rental: Rental, now = Date.now()): RentalView => {
+  if (rental.state === "payment_pending" || rental.state === "preparing") return "pending";
+  return isCurrentReady(rental, now) ? "active" : "history";
 };
 
 export default function AccessManager({ auth }: { auth: { u: string; p: string } }) {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [labs, setLabs] = useState<Lab[]>([]);
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [rentals, setRentals] = useState<Rental[]>([]);
-  const [studentId, setStudentId] = useState("");
-  const [courseId, setCourseId] = useState("");
-  const [labId, setLabId] = useState("");
-  const [courseStart, setCourseStart] = useState("");
-  const [courseExpiry, setCourseExpiry] = useState("");
-  const [labStart, setLabStart] = useState("");
-  const [labExpiry, setLabExpiry] = useState("");
-  const [drafts, setDrafts] = useState<Record<string, { startsAt: string; expiresAt: string }>>({});
-  const [launchDrafts, setLaunchDrafts] = useState<Record<string, string>>({});
-  const [rentalErrors, setRentalErrors] = useState<Record<string, string>>({});
-  const [configuredRentals, setConfiguredRentals] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [students, setStudents] = useState<Student[]>([]); const [courses, setCourses] = useState<Course[]>([]); const [labs, setLabs] = useState<Lab[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]); const [rentals, setRentals] = useState<Rental[]>([]);
+  const [studentId, setStudentId] = useState(""); const [courseId, setCourseId] = useState(""); const [labId, setLabId] = useState("");
+  const [courseStart, setCourseStart] = useState(""); const [courseExpiry, setCourseExpiry] = useState(""); const [labStart, setLabStart] = useState(""); const [labExpiry, setLabExpiry] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, { startsAt: string; expiresAt: string }>>({}); const [launchDrafts, setLaunchDrafts] = useState<Record<string, string>>({});
+  const [rentalErrors, setRentalErrors] = useState<Record<string, string>>({}); const [configuredRentals, setConfiguredRentals] = useState<Record<string, boolean>>({});
+  const [rentalView, setRentalView] = useState<RentalView>("pending"); const [showManualAssignment, setShowManualAssignment] = useState(false);
+  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
 
   const headers = useCallback(() => ({ Authorization: basic(auth.u, auth.p) }), [auth.p, auth.u]);
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const responses = await Promise.all([
-        fetch("/api/admin/students", { cache: "no-store", headers: headers() }),
-        fetch("/api/admin/courses", { cache: "no-store", headers: headers() }),
-        fetch("/api/admin/labs", { cache: "no-store", headers: headers() }),
-        fetch("/api/admin/course-enrollments", { cache: "no-store", headers: headers() }),
-        fetch("/api/admin/lab-rentals", { cache: "no-store", headers: headers() }),
-      ]);
+      const responses = await Promise.all([fetch("/api/admin/students", { cache: "no-store", headers: headers() }), fetch("/api/admin/courses", { cache: "no-store", headers: headers() }), fetch("/api/admin/labs", { cache: "no-store", headers: headers() }), fetch("/api/admin/course-enrollments", { cache: "no-store", headers: headers() }), fetch("/api/admin/lab-rentals", { cache: "no-store", headers: headers() })]);
       if (responses.some((response) => !response.ok)) throw new Error("Apply the authoritative access migration before using access controls.");
       const [studentData, courseData, labData, enrollmentData, rentalData] = await Promise.all(responses.map((response) => response.json()));
-      setStudents((studentData as { students?: Student[] }).students ?? []);
-      setCourses((courseData as { courses?: Course[] }).courses ?? []);
-      setLabs((labData as { labs?: Lab[] }).labs ?? []);
-      setEnrollments((enrollmentData as { enrollments?: Enrollment[] }).enrollments ?? []);
-      setRentals((rentalData as { rentals?: Rental[] }).rentals ?? []);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load access records."); }
-    finally { setLoading(false); }
+      setStudents((studentData as { students?: Student[] }).students ?? []); setCourses((courseData as { courses?: Course[] }).courses ?? []); setLabs((labData as { labs?: Lab[] }).labs ?? []); setEnrollments((enrollmentData as { enrollments?: Enrollment[] }).enrollments ?? []); setRentals((rentalData as { rentals?: Rental[] }).rentals ?? []);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load access records."); } finally { setLoading(false); }
   }, [headers]);
-
   useEffect(() => { void load(); }, [load]);
 
   const request = async (url: string, method: "POST" | "PATCH" | "PUT", body: Record<string, unknown>, rentalId?: string, failureMessage = "Access update failed.") => {
-    setSaving(true); setError("");
-    if (rentalId) setRentalErrors((current) => ({ ...current, [rentalId]: "" }));
-    try {
-      const response = await fetch(url, { method, headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-      const data = contentType.includes("application/json") ? await response.json() as { error?: string } : null;
-      if (!response.ok) throw new Error(data?.error ?? failureMessage);
-      if (!data) throw new Error(failureMessage);
-      await load();
-      return true;
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Access update failed.";
-      if (rentalId) setRentalErrors((current) => ({ ...current, [rentalId]: message }));
-      else setError(message);
-      return false;
-    }
-    finally { setSaving(false); }
+    setSaving(true); setError(""); if (rentalId) setRentalErrors((current) => ({ ...current, [rentalId]: "" }));
+    try { const response = await fetch(url, { method, headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(body) }); const contentType = response.headers.get("content-type")?.toLowerCase() ?? ""; const data = contentType.includes("application/json") ? await response.json() as { error?: string } : null; if (!response.ok) throw new Error(data?.error ?? failureMessage); if (!data) throw new Error(failureMessage); await load(); return data; }
+    catch (cause) { const message = cause instanceof Error ? cause.message : "Access update failed."; if (rentalId) setRentalErrors((current) => ({ ...current, [rentalId]: message })); else setError(message); return false; } finally { setSaving(false); }
   };
-
-  const saveLaunchUrl = async (rentalId: string) => {
-    const launchUrl = launchDrafts[rentalId]?.trim() ?? "";
-    const saved = await request(`/api/admin/lab-rentals/${rentalId}/launch-configuration`, "PUT", { launchUrl }, rentalId);
-    if (saved) setConfiguredRentals((current) => ({ ...current, [rentalId]: true }));
-  };
-
-  const email = (id: string) => students.find((item) => item.id === id)?.email ?? id;
-  const course = (id: string) => courses.find((item) => item.id === id)?.name ?? id;
-  const lab = (id: string) => labs.find((item) => item.id === id)?.title ?? id;
+  const saveLaunchUrl = async (rentalId: string) => { const launchUrl = launchDrafts[rentalId]?.trim() ?? ""; const saved = await request(`/api/admin/lab-rentals/${rentalId}/launch-configuration`, "PUT", { launchUrl }, rentalId); if (saved) setConfiguredRentals((current) => ({ ...current, [rentalId]: true })); };  const assignLabManually = async () => { const result = await request("/api/admin/lab-rentals", "POST", { studentId, labId, startsAt: toUtcIso(labStart), expiresAt: toUtcIso(labExpiry) }); const rental = result ? (result as { rental?: Rental }).rental : undefined; if (rental) { setRentals((current) => [{ ...rental, effective_status: rental.effective_status ?? rental.state }, ...current.filter((item) => item.id !== rental.id)]); setRentalView("pending"); } };
+  const email = (id: string) => students.find((item) => item.id === id)?.email ?? id; const course = (id: string) => courses.find((item) => item.id === id)?.name ?? id; const lab = (id: string) => labs.find((item) => item.id === id)?.title ?? id;
   const selectClass = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground";
+  const groupedRentals = rentals.reduce<Record<RentalView, Rental[]>>((groups, rental) => { groups[rentalViewFor(rental)].push(rental); return groups; }, { pending: [], active: [], history: [] });
+  const visibleRentals = groupedRentals[rentalView];
 
-  if (loading) return <div className="text-center py-16 text-muted-foreground animate-pulse">Loading access records…</div>;
+  if (loading) return <div className="text-center py-16 text-muted-foreground animate-pulse">Loading access recordsâ€¦</div>;
+  const renderRental = (item: Rental) => {
+    const draft = drafts[item.id] ?? { startsAt: toLocalInput(item.starts_at), expiresAt: toLocalInput(item.expires_at) }; const launchUrl = launchDrafts[item.id] ?? ""; const pending = rentalView === "pending";
+    return <div key={item.id} className="rounded-xl border border-border p-4 space-y-4"><div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3"><div><p className="font-semibold">{lab(item.lab_id)}</p><p className="text-xs text-muted-foreground">{email(item.user_id)}</p></div><div className="text-xs text-muted-foreground">{item.starts_at ? new Date(item.starts_at).toLocaleString() : "Start not set"} â†’ {item.expires_at ? new Date(item.expires_at).toLocaleString() : "Expiry not set"}</div><span className="text-xs font-semibold uppercase tracking-wide">{item.effective_status.replace("_", " ")}</span>{pending || rentalView === "active" ? <div className="flex flex-wrap gap-2">{item.state === "payment_pending" && <Button size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "start_preparing" }, item.id)}>Start Preparing</Button>}{item.state === "preparing" && <Button size="sm" disabled={saving || !draft.expiresAt} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "mark_ready", startsAt: draft.startsAt ? toUtcIso(draft.startsAt) : undefined, expiresAt: toUtcIso(draft.expiresAt) }, item.id)}>Mark Ready</Button>}<Button variant="outline" size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "cancel" }, item.id)}>Cancel</Button></div> : null}</div>{rentalErrors[item.id] && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{rentalErrors[item.id]}</p>}{pending && <><div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2"><Input type="datetime-local" value={draft.startsAt} aria-label="Lab rental start" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, startsAt: event.target.value } }))} /><Input type="datetime-local" value={draft.expiresAt} aria-label="Lab rental expiry" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, expiresAt: event.target.value } }))} /><Button variant="outline" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "update_schedule", startsAt: toUtcIso(draft.startsAt), expiresAt: toUtcIso(draft.expiresAt) }, item.id, "Unable to update the Lab schedule.")}>Save Dates</Button></div><div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2"><label htmlFor={`guacamole-url-${item.id}`} className="text-sm font-semibold">Guacamole test URL</label><p className="text-xs text-muted-foreground">Store only the login-page URL. Never enter usernames, passwords, tokens, VM credentials, or connection secrets.</p><div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input id={`guacamole-url-${item.id}`} type="url" placeholder="http://192.168.20.128:8080/guacamole/" value={launchUrl} onChange={(event) => { setLaunchDrafts((current) => ({ ...current, [item.id]: event.target.value })); setConfiguredRentals((current) => ({ ...current, [item.id]: false })); }} /><Button variant="outline" disabled={saving || !/^https?:\/\/\S+$/i.test(launchUrl.trim())} onClick={() => void saveLaunchUrl(item.id)}>Save Guacamole URL</Button></div>{configuredRentals[item.id] && <p role="status" className="text-xs text-emerald-600">Guacamole test URL saved.</p>}</div></>}</div>;
+  };
 
-  return <div className="space-y-10">
-    <div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold">Student Access</h2><p className="text-sm text-muted-foreground">Manual grants until verified payments are implemented.</p></div><Button variant="outline" onClick={() => void load()}><RefreshCw className="h-4 w-4 mr-2" />Refresh</Button></div>
-    {error && <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
-
-    <section className="bg-card rounded-2xl border border-border p-6 space-y-5">
-      <div><h3 className="text-lg font-bold">Course Access</h3><p className="text-sm text-muted-foreground">Grant scheduled access or revoke an enrollment.</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <select className={selectClass} value={studentId} onChange={(event) => setStudentId(event.target.value)}><option value="">Select student</option>{students.map((item) => <option key={item.id} value={item.id}>{item.email}</option>)}</select>
-        <select className={selectClass} value={courseId} onChange={(event) => setCourseId(event.target.value)}><option value="">Select course</option>{courses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        <Input type="datetime-local" value={courseStart} onChange={(event) => setCourseStart(event.target.value)} aria-label="Course start" />
-        <Input type="datetime-local" value={courseExpiry} onChange={(event) => setCourseExpiry(event.target.value)} aria-label="Course expiry" />
-        <Button disabled={saving || !studentId || !courseId} onClick={() => void request("/api/admin/course-enrollments", "POST", { studentId, courseId, startsAt: courseStart ? toUtcIso(courseStart) : undefined, expiresAt: toUtcIso(courseExpiry) })}><Plus className="h-4 w-4 mr-2" />Grant</Button>
-      </div>
-      <div className="overflow-x-auto border border-border rounded-xl"><table className="w-full text-sm"><thead className="bg-muted/40"><tr><th className="text-left p-3">Student</th><th className="text-left p-3">Course</th><th className="text-left p-3">Status</th><th className="text-left p-3">Window</th><th className="p-3" /></tr></thead><tbody>{enrollments.map((item) => <tr key={item.id} className="border-t border-border"><td className="p-3">{email(item.student_id)}</td><td className="p-3">{course(item.course_id)}</td><td className="p-3">{item.status}</td><td className="p-3 text-xs text-muted-foreground">{new Date(item.starts_at).toLocaleString()} → {item.expires_at ? new Date(item.expires_at).toLocaleString() : "No expiry"}</td><td className="p-3 text-right">{item.status === "active" && <Button variant="outline" size="sm" disabled={saving} onClick={() => void request(`/api/admin/course-enrollments/${item.id}`, "PATCH", { action: "revoke" })}>Revoke</Button>}</td></tr>)}</tbody></table></div>
-    </section>
-
-    <section className="bg-card rounded-2xl border border-border p-6 space-y-5">
-      <div><h3 className="text-lg font-bold">Student Lab Rentals</h3><p className="text-sm text-muted-foreground">Lab catalog management remains separate in Lab Rentals.</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <select className={selectClass} value={studentId} onChange={(event) => setStudentId(event.target.value)}><option value="">Select student</option>{students.map((item) => <option key={item.id} value={item.id}>{item.email}</option>)}</select>
-        <select className={selectClass} value={labId} onChange={(event) => setLabId(event.target.value)}><option value="">Select lab</option>{labs.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>
-        <Input type="datetime-local" value={labStart} onChange={(event) => setLabStart(event.target.value)} aria-label="Lab start" />
-        <Input type="datetime-local" value={labExpiry} onChange={(event) => setLabExpiry(event.target.value)} aria-label="Lab expiry" />
-        <Button disabled={saving || !studentId || !labId} onClick={() => void request("/api/admin/lab-rentals", "POST", { studentId, labId, startsAt: toUtcIso(labStart), expiresAt: toUtcIso(labExpiry) })}><Plus className="h-4 w-4 mr-2" />Assign</Button>
-      </div>
-      <div className="space-y-3">{rentals.map((item) => {
-        const draft = drafts[item.id] ?? { startsAt: toLocalInput(item.starts_at), expiresAt: toLocalInput(item.expires_at) };
-        const launchUrlForRental = launchDrafts[item.id] ?? "";
-        return <div key={item.id} className="rounded-xl border border-border p-4 space-y-4">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div><p className="font-semibold">{lab(item.lab_id)}</p><p className="text-xs text-muted-foreground">{email(item.user_id)}</p></div>
-            <span className="text-xs font-semibold uppercase tracking-wide">{item.effective_status.replace("_", " ")}</span>
-            <div className="flex flex-wrap gap-2">
-              {item.state === "payment_pending" && <Button size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "start_preparing" }, item.id)}>Start Preparing</Button>}
-              {item.state === "preparing" && <Button size="sm" disabled={saving || !draft.expiresAt} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "mark_ready", startsAt: draft.startsAt ? toUtcIso(draft.startsAt) : undefined, expiresAt: toUtcIso(draft.expiresAt) }, item.id)}>Mark Ready</Button>}
-              {item.state !== "cancelled" && <Button variant="outline" size="sm" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "cancel" }, item.id)}>Cancel</Button>}
-            </div>
-          </div>
-          {rentalErrors[item.id] && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{rentalErrors[item.id]}</p>}
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
-            <Input type="datetime-local" value={draft.startsAt} aria-label="Lab rental start" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, startsAt: event.target.value } }))} />
-            <Input type="datetime-local" value={draft.expiresAt} aria-label="Lab rental expiry" onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, expiresAt: event.target.value } }))} />
-            <Button variant="outline" disabled={saving} onClick={() => void request(`/api/admin/lab-rentals/${item.id}`, "PATCH", { action: "update_schedule", startsAt: toUtcIso(draft.startsAt), expiresAt: toUtcIso(draft.expiresAt) }, item.id, "Unable to update the Lab schedule.")}>Save Dates</Button>
-          </div>
-          {item.state !== "cancelled" && <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
-            <label htmlFor={`guacamole-url-${item.id}`} className="text-sm font-semibold">Guacamole test URL</label>
-            <p className="text-xs text-muted-foreground">Store only the login-page URL. Never enter usernames, passwords, tokens, VM credentials, or connection secrets.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-              <Input id={`guacamole-url-${item.id}`} type="url" placeholder="http://192.168.20.128:8080/guacamole/" value={launchUrlForRental} onChange={(event) => { setLaunchDrafts((current) => ({ ...current, [item.id]: event.target.value })); setConfiguredRentals((current) => ({ ...current, [item.id]: false })); }} />
-              <Button variant="outline" disabled={saving || !/^https?:\/\/\S+$/i.test(launchUrlForRental.trim())} onClick={() => void saveLaunchUrl(item.id)}>Save Guacamole URL</Button>
-            </div>
-            {configuredRentals[item.id] && <p role="status" className="text-xs text-emerald-600">Guacamole test URL saved.</p>}
-          </div>}
-        </div>;
-      })}{rentals.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No student lab rentals yet.</p>}</div>
-    </section>
-  </div>;
+  return <div className="space-y-10"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold">Student Access</h2><p className="text-sm text-muted-foreground">Manual grants until verified payments are implemented.</p></div><Button variant="outline" onClick={() => void load()}><RefreshCw className="h-4 w-4 mr-2" />Refresh</Button></div>{error && <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+    <section className="bg-card rounded-2xl border border-border p-6 space-y-5"><div><h3 className="text-lg font-bold">Course Access</h3><p className="text-sm text-muted-foreground">Grant scheduled access or revoke an enrollment.</p></div><div className="grid grid-cols-1 md:grid-cols-5 gap-3"><select className={selectClass} value={studentId} onChange={(event) => setStudentId(event.target.value)}><option value="">Select student</option>{students.map((item) => <option key={item.id} value={item.id}>{item.email}</option>)}</select><select className={selectClass} value={courseId} onChange={(event) => setCourseId(event.target.value)}><option value="">Select course</option>{courses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><Input type="datetime-local" value={courseStart} onChange={(event) => setCourseStart(event.target.value)} aria-label="Course start" /><Input type="datetime-local" value={courseExpiry} onChange={(event) => setCourseExpiry(event.target.value)} aria-label="Course expiry" /><Button disabled={saving || !studentId || !courseId} onClick={() => void request("/api/admin/course-enrollments", "POST", { studentId, courseId, startsAt: courseStart ? toUtcIso(courseStart) : undefined, expiresAt: toUtcIso(courseExpiry) })}><Plus className="h-4 w-4 mr-2" />Grant</Button></div><div className="overflow-x-auto border border-border rounded-xl"><table className="w-full text-sm"><thead className="bg-muted/40"><tr><th className="text-left p-3">Student</th><th className="text-left p-3">Course</th><th className="text-left p-3">Status</th><th className="text-left p-3">Window</th><th className="p-3" /></tr></thead><tbody>{enrollments.map((item) => <tr key={item.id} className="border-t border-border"><td className="p-3">{email(item.student_id)}</td><td className="p-3">{course(item.course_id)}</td><td className="p-3">{item.status}</td><td className="p-3 text-xs text-muted-foreground">{new Date(item.starts_at).toLocaleString()} â†’ {item.expires_at ? new Date(item.expires_at).toLocaleString() : "No expiry"}</td><td className="p-3 text-right">{item.status === "active" && <Button variant="outline" size="sm" disabled={saving} onClick={() => void request(`/api/admin/course-enrollments/${item.id}`, "PATCH", { action: "revoke" })}>Revoke</Button>}</td></tr>)}</tbody></table></div></section>
+    <section className="bg-card rounded-2xl border border-border p-6 space-y-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h3 className="text-lg font-bold">Student Lab Rentals</h3><p className="text-sm text-muted-foreground">Prepare incoming requests first; completed and historical rentals stay separate.</p></div><Button variant="outline" onClick={() => setShowManualAssignment((visible) => !visible)}><Plus className="h-4 w-4 mr-2" />Assign Lab Manually <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${showManualAssignment ? "rotate-180" : ""}`} /></Button></div>{showManualAssignment && <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3"><p className="text-sm font-semibold">Manual assignment</p><div className="grid grid-cols-1 md:grid-cols-5 gap-3"><select className={selectClass} value={studentId} onChange={(event) => setStudentId(event.target.value)}><option value="">Select student</option>{students.map((item) => <option key={item.id} value={item.id}>{item.email}</option>)}</select><select className={selectClass} value={labId} onChange={(event) => setLabId(event.target.value)}><option value="">Select lab</option>{labs.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select><Input type="datetime-local" value={labStart} onChange={(event) => setLabStart(event.target.value)} aria-label="Lab start" /><Input type="datetime-local" value={labExpiry} onChange={(event) => setLabExpiry(event.target.value)} aria-label="Lab expiry" /><Button disabled={saving || !studentId || !labId} onClick={() => void assignLabManually()}>Assign</Button></div></div>}<div className="flex flex-wrap gap-2" role="tablist" aria-label="Lab rental workflow"><Button size="sm" variant={rentalView === "pending" ? "default" : "outline"} onClick={() => setRentalView("pending")}>Pending Requests ({groupedRentals.pending.length})</Button><Button size="sm" variant={rentalView === "active" ? "default" : "outline"} onClick={() => setRentalView("active")}>Active Labs ({groupedRentals.active.length})</Button><Button size="sm" variant={rentalView === "history" ? "default" : "outline"} onClick={() => setRentalView("history")}>History ({groupedRentals.history.length})</Button></div><div className="space-y-3">{visibleRentals.map(renderRental)}{visibleRentals.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No {rentalView === "pending" ? "pending requests" : rentalView === "active" ? "active labs" : "historical rentals"}.</p>}</div></section></div>;
 }
