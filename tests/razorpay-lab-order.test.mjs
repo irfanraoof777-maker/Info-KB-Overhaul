@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { createRazorpayLabOrderHandler, isCurrentRental, payableInrPrice, toInrPaise } from "../server/vercel-api/razorpay-lab-orders.js";
+import { createRazorpayLabOrderHandler, isCurrentRental } from "../server/vercel-api/razorpay-lab-orders.js";
+import { payableUsdPrice, usdToInrPaise } from "../server/vercel-api/_utils/usd-inr-rate.js";
 
 const source = readFileSync("server/vercel-api/razorpay-lab-orders.js", "utf8");
 const migration = readFileSync("supabase/migrations/20260823_add_razorpay_lab_payment_orders.sql", "utf8");
@@ -18,14 +19,12 @@ test("Razorpay order request rejects unauthenticated students", async () => {
   assert.equal(res.statusCode, 401);
 });
 
-test("authoritative INR price selection and paise conversion are exact", () => {
-  assert.equal(toInrPaise("20000.00"), 2000000);
-  assert.deepEqual(payableInrPrice({ price_inr: "20000.00", discounted_price_inr: null }), { amount: 2000000, regularPriceInr: "20000.00", discountedPriceInr: null });
-  assert.deepEqual(payableInrPrice({ price_inr: "20000.00", discounted_price_inr: "15999.50" }), { amount: 1599950, regularPriceInr: "20000.00", discountedPriceInr: "15999.50" });
-  assert.throws(() => payableInrPrice({ price_inr: null }), /not configured/);
-  assert.equal(payableInrPrice({ price_inr: "0.00", discounted_price_inr: null }).amount, 0);
+test("authoritative USD price selection and direct paise conversion are exact", () => {
+  assert.deepEqual(payableUsdPrice({ price_usd: "200.00", discounted_price_usd: null }), { usdAmount: "200.00", usdPriceType: "regular" });
+  assert.deepEqual(payableUsdPrice({ price_usd: "200.00", discounted_price_usd: "159.95" }), { usdAmount: "159.95", usdPriceType: "discounted" });
+  assert.equal(usdToInrPaise("200.00", "95.7219"), 1914438);
+  assert.throws(() => payableUsdPrice({ price_usd: null }), /USD price is invalid/);
 });
-
 test("only current rentals block purchase; cancelled and expired rentals do not", () => {
   const now = new Date("2026-08-18T00:00:00.000Z");
   assert.equal(isCurrentRental({ state: "payment_pending" }, now), true);
@@ -39,7 +38,7 @@ test("only current rentals block purchase; cancelled and expired rentals do not"
 test("server accepts only labId and keeps pricing, identity, and secrets server-side", () => {
   assert.match(source, /Object\.keys\(body\)\.length !== 1/);
   assert.match(source, /auth\.user\.id/);
-  assert.match(source, /price_inr, discounted_price_inr/);
+  assert.match(source, /price_usd, discounted_price_usd/);
   assert.doesNotMatch(source, /req\.body\?\.amount|body\.amount|body\.currency|body\.studentId|body\.userId/);
   assert.doesNotMatch(source, /lab_rentals"\)\.insert|\.rpc\(/);
   assert.match(source, /RAZORPAY_KEY_SECRET/);
