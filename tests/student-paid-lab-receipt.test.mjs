@@ -18,6 +18,8 @@ test("student receipt uses only trusted persisted receipt values", async () => {
     assert.equal(url, "https://api.resend.com/emails"); assert.deepEqual(body.to, ["registered@example.test"]);
     assert.equal(body.subject, "Payment Successful - Your InfoKB Lab Is Being Prepared");
     assert.equal(init.headers["Idempotency-Key"], "student-paid-lab-receipt-rental-1");
+    assert.equal(init.headers["User-Agent"], "infokb-student-paid-lab-receipt/1.0");
+    assert.equal(init.headers.Authorization, "Bearer test");
     for (const value of ["Payment Receipt", "Registered Student", "registered@example.test", "VMware Lab", "INR 20,000.00", "Currency: INR", "Payment Status: Paid", "Lab Status: Preparing", "18 Aug 2026, 10:19 PM IST", "rental-1", "internal-order", "order_rzp", "pay_rzp"]) assert.ok(body.text.includes(value));
     assert.ok(body.text.includes("currently being prepared")); assert.ok(!body.text.includes("Tax Invoice")); assert.ok(!body.text.includes("Guacamole"));
   } finally { [process.env.RESEND_API_KEY, process.env.PAID_LAB_RECEIPT_FROM] = old; }
@@ -44,4 +46,15 @@ test("browser receipt opportunity follows captured finalization and cannot use b
     assert.equal(response.statusCode, 200); assert.equal(receipt.order.amount_minor, 2000000); assert.equal(receipt.order.currency, "INR"); assert.equal(receipt.rental.state, "preparing");
     assert.equal(adminCalls, 0, "the injectable delivery stub must not receive browser identity");
   } finally { if (oldId === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = oldId; if (oldSecret === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = oldSecret; }
+});
+
+test("failed Resend responses safely surface their message without logging authorization", async () => {
+  const old = [process.env.RESEND_API_KEY, process.env.PAID_LAB_RECEIPT_FROM];
+  process.env.RESEND_API_KEY = "secret-api-key"; process.env.PAID_LAB_RECEIPT_FROM = "InfoKB <support@infokb.com>";
+  const logged = []; const originalError = console.error; console.error = (...args) => logged.push(args.join(" "));
+  try {
+    await assert.rejects(() => sendStudentPaidLabReceipt({ rental, order, paymentId: "pay_rzp", user: { email: "registered@example.test" }, lab: { title: "VMware Lab" }, fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ message: "The from address is not authorized." }) }) }), /403: The from address is not authorized\./);
+    assert.equal(logged.join(" "), "");
+    assert.ok(!logged.join(" ").includes("secret-api-key"));
+  } finally { console.error = originalError; [process.env.RESEND_API_KEY, process.env.PAID_LAB_RECEIPT_FROM] = old; }
 });

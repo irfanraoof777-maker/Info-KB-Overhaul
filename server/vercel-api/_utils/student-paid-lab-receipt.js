@@ -19,6 +19,13 @@ function formatPaidAt(value) {
   return `${values.day} ${values.month} ${values.year}, ${values.hour}:${values.minute} ${values.dayPeriod.toUpperCase()} IST`;
 }
 
+async function resendFailureMessage(response) {
+  let body;
+  try { body = await response.json(); } catch { return `Resend request failed with status ${response.status}`; }
+  const message = typeof body?.message === "string" ? body.message.trim().slice(0, 500) : "";
+  return message ? `Resend request failed with status ${response.status}: ${message}` : `Resend request failed with status ${response.status}`;
+}
+
 export async function sendStudentPaidLabReceipt({ rental, order, paymentId, user, lab, fetchImpl = fetch }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.PAID_LAB_RECEIPT_FROM;
@@ -40,6 +47,6 @@ export async function sendStudentPaidLabReceipt({ rental, order, paymentId, user
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": `student-paid-lab-receipt-${rental.id}`, "User-Agent": "infokb-student-paid-lab-receipt/1.0" },
     body: JSON.stringify({ from, to: [recipient], subject: "Payment Successful - Your InfoKB Lab Is Being Prepared", text })
   });
-  if (!response.ok) throw new Error(`Resend request failed with status ${response.status}`);
+  if (!response.ok) throw new Error(await resendFailureMessage(response));
   return { sent: true };
 }
