@@ -10,3 +10,9 @@ test("missing paid_at is never rendered as the Unix epoch", async () => {
   const previous = [process.env.RESEND_API_KEY, process.env.FREE_LAB_NOTIFICATION_FROM]; process.env.RESEND_API_KEY = "test"; process.env.FREE_LAB_NOTIFICATION_FROM = "InfoKB <test@example.test>"; let request;
   try { await sendPaidLabNotification({ rental, order: { ...order, paid_at: null }, paymentId: "pay_rzp", user: { email: "student@example.test", user_metadata: { full_name: "Student Name" } }, lab: { title: "VMware Lab" }, fetchImpl: async (...args) => { request = args; return { ok: true, status: 200 }; } }); const text = JSON.parse(request[1].body).text; assert.ok(text.includes("Paid At: Not available")); assert.ok(!text.includes("1970-01-01")); } finally { [process.env.RESEND_API_KEY, process.env.FREE_LAB_NOTIFICATION_FROM] = previous; }
 });
+
+test("paid_at is formatted in Asia/Kolkata and safely rejects invalid values", async () => {
+  const previous = [process.env.RESEND_API_KEY, process.env.FREE_LAB_NOTIFICATION_FROM]; process.env.RESEND_API_KEY = "test"; process.env.FREE_LAB_NOTIFICATION_FROM = "InfoKB <test@example.test>";
+  async function textFor(paid_at) { let request; await sendPaidLabNotification({ rental, order: { ...order, paid_at }, paymentId: "pay_rzp", user: { email: "student@example.test", user_metadata: { full_name: "Student Name" } }, lab: { title: "VMware Lab" }, fetchImpl: async (...args) => { request = args; return { ok: true, status: 200 }; } }); return JSON.parse(request[1].body).text; }
+  try { assert.ok((await textFor("2026-08-18T16:49:25.790Z")).includes("Paid At: 18 Aug 2026, 10:19 PM IST")); assert.ok((await textFor("2026-08-18T20:00:00.000Z")).includes("Paid At: 19 Aug 2026, 1:30 AM IST")); assert.ok((await textFor(null)).includes("Paid At: Not available")); assert.ok((await textFor("invalid")).includes("Paid At: Not available")); } finally { [process.env.RESEND_API_KEY, process.env.FREE_LAB_NOTIFICATION_FROM] = previous; }
+});
