@@ -187,3 +187,29 @@ test("student router preserves unknown-route 404 behavior", async () => {
   assert.equal(res.statusCode, 404);
   assert.deepEqual(res.body, { error: "Not found" });
 });
+
+test("Vercel rewrite and Admin router dispatch lab UUID PUT and DELETE without bypassing Admin auth", async () => {
+  const labId = "f5507a29-b7fc-4d7a-b027-52921a9d679c";
+  const entrypoint = readFileSync("api/admin/[...path].js", "utf8");
+  const labHandler = readFileSync("server/vercel-api/admin/labs/[id].js", "utf8");
+  const config = JSON.parse(readFileSync("vercel.json", "utf8"));
+  assert.match(entrypoint, /route\(\/\^labs\\\/\(\[\^\/\]\+\)\$\/, \["PUT", "DELETE"\], labById\)/);
+  assert.match(labHandler, /checkBasicAuth\(req, res\)/);
+  assert.ok(config.rewrites.some((rewrite) =>
+    rewrite.source === "/api/admin/labs/:id"
+      && rewrite.destination === "/api/admin/labs?adminPath=labs/:id"
+  ));
+
+  const dispatched = [];
+  const router = createAdminRouter([{
+    pattern: /^labs\/([^/]+)$/,
+    methods: new Set(["PUT", "DELETE", "OPTIONS"]),
+    handler: (req, res) => { dispatched.push({ method: req.method, id: req.query.id }); return res.status(200).json({ ok: true }); },
+  }]);
+  for (const method of ["PUT", "DELETE"]) {
+    const res = response();
+    await router({ method, url: `/api/admin/labs?adminPath=labs/${labId}`, query: { path: ["labs"], adminPath: `labs/${labId}` } }, res);
+    assert.equal(res.statusCode, 200);
+  }
+  assert.deepEqual(dispatched, [{ method: "PUT", id: labId }, { method: "DELETE", id: labId }]);
+});

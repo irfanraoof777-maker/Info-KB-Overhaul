@@ -1,5 +1,6 @@
 import { checkBasicAuth, setCors } from "../_utils/auth.js";
 import { getSupabaseAdmin, SETUP_SQL } from "../_utils/supabase.js";
+import { validateLabPricing } from "../_utils/lab-pricing.js";
 
 const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
 
@@ -32,10 +33,16 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     try {
       const supabase = getSupabaseAdmin();
-      const body = req.body ?? {};
+      const body = { ...(req.body ?? {}) };
+      const pricing = validateLabPricing(body);
+      if (!Object.hasOwn(pricing, "price_usd")) {
+        return res.status(400).json({ error: "Regular Price (USD) is required." });
+      }
+      delete body.price;
+      delete body.discounted_price;
       const { data, error } = await supabase
         .from("labs")
-        .insert([body])
+        .insert([{ ...body, ...pricing }])
         .select()
         .single();
       if (error) throw error;
