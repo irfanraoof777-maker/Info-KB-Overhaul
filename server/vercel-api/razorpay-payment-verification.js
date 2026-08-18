@@ -48,6 +48,16 @@ async function findOrder(supabase, razorpayOrderId, studentId = null) {
   return data;
 }
 
+async function refreshedFinalizedOrder(supabase, order) {
+  try {
+    const refreshed = await findOrder(supabase, order.razorpay_order_id, order.student_id);
+    if (!refreshed?.paid_at) console.warn("[paid-lab-notification] finalized order is missing paid_at");
+    return refreshed ?? order;
+  } catch (error) {
+    console.warn("[paid-lab-notification] could not refresh finalized order", error instanceof Error ? error.message : "unknown error");
+    return order;
+  }
+}
 async function finalize(supabase, order, paymentId, eventId, payload) {
   const { data, error } = await supabase.rpc("finalize_razorpay_lab_payment", {
     p_payment_order_id: order.id,
@@ -124,7 +134,8 @@ export function createRazorpayVerifyHandler({ authenticate = requireStudent, req
       const payment = await razorpay(request, keyId, keySecret, `/payments/${encodeURIComponent(body.razorpay_payment_id)}`);
       if (!isCapturedInrPayment(payment, order)) return res.status(409).json({ error: "Payment has not been captured for this order." });
       const rental = await finalize(auth.supabase, order, payment.id, null, { source: "browser_verify", payment_status: payment.status });
-      await notify({ supabase: auth.supabase, order, rental, paymentId: payment.id, user: auth.user });
+      const finalizedOrder = await refreshedFinalizedOrder(auth.supabase, order);
+      await notify({ supabase: auth.supabase, order: finalizedOrder, rental, paymentId: payment.id, user: auth.user });
       return res.status(200).json({ verified: true, rentalId: rental.id, state: rental.state });
     } catch (error) {
       console.error("[razorpay-verify] failed", error instanceof Error ? error.message : "unknown error");
@@ -166,7 +177,8 @@ export function createRazorpayWebhookHandler({ request = fetch, notify = notifyP
       const deliveryId = req.headers["x-razorpay-event-id"];
       const eventId = typeof deliveryId === "string" ? deliveryId : `${event.event}:${payment.id}`;
       const rental = await finalize(supabase, order, payment.id, eventId, { event: event.event, payment_id: payment.id, order_id: razorpayOrderId });
-      await notify({ supabase, order, rental, paymentId: payment.id });
+      const finalizedOrder = await refreshedFinalizedOrder(supabase, order);
+      await notify({ supabase, order: finalizedOrder, rental, paymentId: payment.id });
       return res.status(200).json({ received: true, rentalId: rental.id });
     } catch (error) {
       console.error("[razorpay-webhook] failed", error instanceof Error ? error.message : "unknown error");

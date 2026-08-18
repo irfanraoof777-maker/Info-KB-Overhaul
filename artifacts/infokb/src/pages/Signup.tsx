@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 
 export default function Signup() {
   const [, navigate] = useLocation();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -17,6 +18,16 @@ export default function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const normalizedFullName = fullName.trim();
+    if (!normalizedFullName) {
+      setError("Full name is required.");
+      return;
+    }
+    if (normalizedFullName.length > 120) {
+      setError("Full name must be 120 characters or fewer.");
+      return;
+    }
 
     if (password !== confirm) {
       setError("Passwords do not match.");
@@ -32,6 +43,7 @@ export default function Signup() {
       const { data, error: authError } = await supabase!.auth.signUp({
         email,
         password,
+        options: { data: { full_name: normalizedFullName } },
       });
       if (authError) {
         setError(authError.message);
@@ -82,6 +94,10 @@ export default function Signup() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="full-name">Full Name</Label>
+            <Input id="full-name" type="text" placeholder="Mohammed Irfan Raoof" value={fullName} onChange={(e) => setFullName(e.target.value)} required autoComplete="name" maxLength={120} />
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
