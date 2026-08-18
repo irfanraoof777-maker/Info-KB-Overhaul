@@ -42,3 +42,37 @@ test("routes expose browser verify and raw-body webhook endpoints", () => {
   const config=JSON.parse(readFileSync("vercel.json","utf8")); assert.ok(config.rewrites.some((r)=>r.source==="/api/lab-payments/razorpay/verify")); assert.ok(config.rewrites.some((r)=>r.source==="/api/lab-payments/razorpay/webhook"));
   const entry=readFileSync("api/lab-payments.js","utf8"); assert.match(entry,/bodyParser: false/); assert.match(entry,/razorpay\/webhook/);
 });
+test("browser notification is attempted only after successful captured finalization", async () => {
+  const oldId = process.env.RAZORPAY_KEY_ID, oldSecret = process.env.RAZORPAY_KEY_SECRET;
+  process.env.RAZORPAY_KEY_ID = "key_test"; process.env.RAZORPAY_KEY_SECRET = secret;
+  let notifications = 0;
+  try {
+    const body = { razorpay_order_id: "order_test", razorpay_payment_id: "pay_test", razorpay_signature: sig("order_test|pay_test") };
+    const response = res();
+    await createRazorpayVerifyHandler({ authenticate: auth(), request: async () => ({ ok: true, json: async () => payment() }), notify: async ({ rental }) => { notifications += 1; assert.equal(rental.state, "preparing"); } })({ method: "POST", body, headers: {} }, response);
+    assert.equal(response.statusCode, 200); assert.equal(notifications, 1);
+  } finally { if (oldId === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = oldId; if (oldSecret === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = oldSecret; }
+});
+
+test("invalid and non-captured browser payments never attempt notification", async () => {
+  const oldId = process.env.RAZORPAY_KEY_ID, oldSecret = process.env.RAZORPAY_KEY_SECRET;
+  process.env.RAZORPAY_KEY_ID = "key_test"; process.env.RAZORPAY_KEY_SECRET = secret;
+  let notifications = 0;
+  try {
+    const invalid = res();
+    await createRazorpayVerifyHandler({ authenticate: auth(), request: async () => ({ ok: true, json: async () => payment() }), notify: async () => { notifications += 1; } })({ method: "POST", body: { razorpay_order_id: "order_test", razorpay_payment_id: "pay_test", razorpay_signature: "0".repeat(64) }, headers: {} }, invalid);
+    const uncaptured = res(); const body = { razorpay_order_id: "order_test", razorpay_payment_id: "pay_test", razorpay_signature: sig("order_test|pay_test") };
+    await createRazorpayVerifyHandler({ authenticate: auth(), request: async () => ({ ok: true, json: async () => payment({ status: "authorized" }) }), notify: async () => { notifications += 1; } })({ method: "POST", body, headers: {} }, uncaptured);
+    assert.equal(invalid.statusCode, 400); assert.equal(uncaptured.statusCode, 409); assert.equal(notifications, 0);
+  } finally { if (oldId === undefined) delete process.env.RAZORPAY_KEY_ID; else process.env.RAZORPAY_KEY_ID = oldId; if (oldSecret === undefined) delete process.env.RAZORPAY_KEY_SECRET; else process.env.RAZORPAY_KEY_SECRET = oldSecret; }
+});
+
+test("paid notification migration guards duplicate events and stale workers", () => {
+  const sql = readFileSync("supabase/migrations/20260826_add_paid_lab_notification_outbox.sql", "utf8");
+  assert.match(sql, /payment_order_id uuid NOT NULL UNIQUE/);
+  assert.match(sql, /ON CONFLICT DO NOTHING/);
+  assert.match(sql, /FOR UPDATE/);
+  assert.match(sql, /reservation_token=token/);
+  assert.match(sql, /reservation_token=p_reservation_token AND sent_at IS NULL/);
+  assert.match(sql, /interval '5 minutes'/);
+});

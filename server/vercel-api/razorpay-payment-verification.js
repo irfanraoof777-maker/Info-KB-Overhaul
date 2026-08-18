@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { requireStudent } from "./_utils/student-auth.js";
+import { sendPaidLabNotification } from "./_utils/paid-lab-notification.js";
 
 function equalSignature(expected, received) {
   if (typeof received !== "string" || !/^[a-f0-9]{64}$/i.test(received)) return false;
@@ -38,7 +39,7 @@ async function razorpay(request, keyId, secret, path) {
 
 async function findOrder(supabase, razorpayOrderId, studentId = null) {
   let query = supabase.from("lab_payment_orders")
-    .select("id, student_id, lab_id, amount_minor, currency, status, razorpay_order_id, razorpay_payment_id, rental_id")
+    .select("id, student_id, lab_id, amount_minor, currency, status, razorpay_order_id, razorpay_payment_id, rental_id, paid_at")
     .eq("provider", "razorpay")
     .eq("razorpay_order_id", razorpayOrderId);
   if (studentId) query = query.eq("student_id", studentId);
@@ -73,6 +74,27 @@ async function jsonRequestBody(req) {
   return JSON.parse((await rawRequestBody(req)).toString("utf8"));
 }
 
+async function notifyPaidLab({ supabase, order, rental, paymentId, user, send = sendPaidLabNotification }) {
+  const { data: reservationToken, error: reserveError } = await supabase.rpc("reserve_paid_lab_notification", { p_rental_id: rental.id });
+  if (reserveError || !reservationToken) return;
+  try {
+    const { data: lab, error: labError } = await supabase.from("labs").select("title").eq("id", order.lab_id).maybeSingle();
+    if (labError || !lab) throw new Error("Lab notification details are unavailable.");
+    let student = user;
+    if (!student) {
+      const result = await supabase.auth.admin.getUserById(order.student_id);
+      if (result.error || !result.data?.user) throw new Error("Student notification details are unavailable.");
+      student = result.data.user;
+    }
+    const result = await send({ rental, order, paymentId, user: student, lab });
+    if (!result?.sent) throw new Error(result?.reason ?? "Paid notification was not sent.");
+    await supabase.rpc("complete_paid_lab_notification", { p_rental_id: rental.id, p_reservation_token: reservationToken, p_error: null });
+  } catch (error) {
+    const message = error instanceof Error ? error.message.slice(0, 500) : "notification failed";
+    await supabase.rpc("complete_paid_lab_notification", { p_rental_id: rental.id, p_reservation_token: reservationToken, p_error: message });
+    console.error("[paid-lab-notification] failed", message);
+  }
+}
 function paymentConfig() {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -80,7 +102,7 @@ function paymentConfig() {
   return { keyId, keySecret };
 }
 
-export function createRazorpayVerifyHandler({ authenticate = requireStudent, request = fetch } = {}) {
+export function createRazorpayVerifyHandler({ authenticate = requireStudent, request = fetch, notify = notifyPaidLab } = {}) {
   return async function verifyHandler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -102,6 +124,7 @@ export function createRazorpayVerifyHandler({ authenticate = requireStudent, req
       const payment = await razorpay(request, keyId, keySecret, `/payments/${encodeURIComponent(body.razorpay_payment_id)}`);
       if (!isCapturedInrPayment(payment, order)) return res.status(409).json({ error: "Payment has not been captured for this order." });
       const rental = await finalize(auth.supabase, order, payment.id, null, { source: "browser_verify", payment_status: payment.status });
+      await notify({ supabase: auth.supabase, order, rental, paymentId: payment.id, user: auth.user });
       return res.status(200).json({ verified: true, rentalId: rental.id, state: rental.state });
     } catch (error) {
       console.error("[razorpay-verify] failed", error instanceof Error ? error.message : "unknown error");
@@ -110,7 +133,7 @@ export function createRazorpayVerifyHandler({ authenticate = requireStudent, req
   };
 }
 
-export function createRazorpayWebhookHandler({ request = fetch } = {}) {
+export function createRazorpayWebhookHandler({ request = fetch, notify = notifyPaidLab } = {}) {
   return async function webhookHandler(req, res) {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
     const rawBody = await rawRequestBody(req);
@@ -143,6 +166,7 @@ export function createRazorpayWebhookHandler({ request = fetch } = {}) {
       const deliveryId = req.headers["x-razorpay-event-id"];
       const eventId = typeof deliveryId === "string" ? deliveryId : `${event.event}:${payment.id}`;
       const rental = await finalize(supabase, order, payment.id, eventId, { event: event.event, payment_id: payment.id, order_id: razorpayOrderId });
+      await notify({ supabase, order, rental, paymentId: payment.id });
       return res.status(200).json({ received: true, rentalId: rental.id });
     } catch (error) {
       console.error("[razorpay-webhook] failed", error instanceof Error ? error.message : "unknown error");
