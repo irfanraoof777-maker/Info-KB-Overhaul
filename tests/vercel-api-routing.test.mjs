@@ -19,17 +19,17 @@ function response() {
   };
 }
 
-test("Admin Basic authentication accepts valid and rejects invalid credentials", () => {
+test("Admin Basic authentication accepts valid and rejects invalid credentials", async () => {
   const previousUser = process.env.ADMIN_USERNAME;
   const previousPassword = process.env.ADMIN_PASSWORD;
   process.env.ADMIN_USERNAME = "test-admin";
   process.env.ADMIN_PASSWORD = "test-password";
   try {
     const validResponse = response();
-    assert.equal(checkBasicAuth({ headers: { authorization: `Basic ${Buffer.from("test-admin:test-password").toString("base64")}` } }, validResponse), true);
+    assert.equal(await checkBasicAuth({ headers: { authorization: `Basic ${Buffer.from("test-admin:test-password").toString("base64")}` } }, validResponse), true);
 
     const invalidResponse = response();
-    assert.equal(checkBasicAuth({ headers: { authorization: `Basic ${Buffer.from("test-admin:wrong").toString("base64")}` } }, invalidResponse), false);
+    assert.equal(await checkBasicAuth({ headers: { authorization: `Basic ${Buffer.from("test-admin:wrong").toString("base64")}` } }, invalidResponse), false);
     assert.equal(invalidResponse.statusCode, 401);
   } finally {
     if (previousUser === undefined) delete process.env.ADMIN_USERNAME; else process.env.ADMIN_USERNAME = previousUser;

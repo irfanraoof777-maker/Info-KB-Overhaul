@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   setCors(res);
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (!checkBasicAuth(req, res)) return;
+  if (!(await checkBasicAuth(req, res))) return;
   if (req.method !== "PUT") return res.status(405).json({ error: "Method not allowed" });
   const rentalId = typeof req.query.id === "string" ? req.query.id : "";
   const launchUrl = typeof req.body?.launchUrl === "string" ? req.body.launchUrl.trim() : "";

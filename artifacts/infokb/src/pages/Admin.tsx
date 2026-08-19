@@ -1608,113 +1608,70 @@ export default function Admin() {
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [resetRequest, setResetRequest] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("courses");
   const usernameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { usernameRef.current?.focus(); }, []);
+  useEffect(() => { if (!resetRequest) usernameRef.current?.focus(); }, [resetRequest]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(""); setAuthLoading(true);
     try {
-      const res = await fetch("/api/admin/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+      const res = await fetch("/api/admin/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
       let data: { ok?: boolean; error?: string } = {};
       try { data = await res.json(); } catch { /* ignore */ }
       if (res.status === 401) { setAuthError("Incorrect username or password."); return; }
       if (!res.ok) { setAuthError(data.error ?? "Server error. Please try again."); return; }
-      if (data.ok) { setAuthed(true); } else { setAuthError("Incorrect username or password."); }
+      if (data.ok) setAuthed(true); else setAuthError("Incorrect username or password.");
     } catch { setAuthError("Could not reach the server. Please try again."); }
     finally { setAuthLoading(false); }
   };
 
-  if (!authed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 dark:bg-background px-4">
-        <div className="w-full max-w-sm bg-white dark:bg-card rounded-2xl shadow-lg p-8 border border-border">
-          <div className="mb-7 text-center">
-            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-3">
-              <span className="text-2xl">üîê</span>
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
-            <p className="text-sm text-muted-foreground mt-1">Enter your credentials to continue</p>
+  const sendResetLink = async () => {
+    setResetError(""); setResetLoading(true);
+    try {
+      const res = await fetch("/api/admin-password-reset/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      if (!res.ok) { const data = await res.json().catch(() => ({})) as { error?: string }; throw new Error(data.error ?? "Unable to send a reset link."); }
+      setResetSent(true);
+    } catch (error) { setResetError(error instanceof Error ? error.message : "Unable to send a reset link."); }
+    finally { setResetLoading(false); }
+  };
+
+  if (!authed) return (
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 dark:bg-background px-4">
+      <div className="w-full max-w-sm bg-white dark:bg-card rounded-2xl shadow-lg p-8 border border-border">
+        {resetRequest ? (
+          <div className="text-center">
+            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-3"><span className="text-2xl">??</span></div>
+            <h1 className="text-2xl font-bold text-foreground">Reset Admin Password</h1>
+            {resetSent ? <p className="text-sm text-muted-foreground mt-3">A secure password reset link has been sent to the authorized InfoKB administrators.</p> : <>
+              <p className="text-sm text-muted-foreground mt-3">A secure password reset link will be sent to the authorized InfoKB administrators.</p>
+              {resetError && <p className="mt-4 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{resetError}</p>}
+              <Button type="button" className="w-full mt-6" onClick={sendResetLink} disabled={resetLoading}>{resetLoading ? "SendingÖ" : "Send Reset Link"}</Button>
+            </>}
+            <button type="button" className="mt-6 text-sm text-primary font-medium hover:underline" onClick={() => { setResetRequest(false); setResetError(""); setResetSent(false); }}>Return to Admin Login</button>
           </div>
+        ) : <>
+          <div className="mb-7 text-center"><div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-3"><span className="text-2xl">??</span></div><h1 className="text-2xl font-bold text-foreground">Admin Panel</h1><p className="text-sm text-muted-foreground mt-1">Enter your credentials to continue</p></div>
           <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="admin-user">Username</Label>
-              <Input id="admin-user" ref={usernameRef} type="text" value={username}
-                onChange={(e) => setUsername(e.target.value)} required autoComplete="username"
-                className="text-foreground bg-background" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="admin-pass">Password</Label>
-              <div className="relative">
-                <Input id="admin-pass" type={showPassword ? "text" : "password"} value={password}
-                  onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password"
-                  className="text-foreground bg-background pr-10" />
-                <button type="button" onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}>
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+            <div className="space-y-1.5"><Label htmlFor="admin-user">Username</Label><Input id="admin-user" ref={usernameRef} type="text" value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" className="text-foreground bg-background" /></div>
+            <div className="space-y-1.5"><Label htmlFor="admin-pass">Password</Label><div className="relative"><Input id="admin-pass" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" className="text-foreground bg-background pr-10" /><button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
             {authError && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{authError}</p>}
-            <Button type="submit" className="w-full" disabled={authLoading}>
-              {authLoading ? "Verifying‚Ä¶" : "Enter Admin Panel"}
-            </Button>
+            <Button type="submit" className="w-full" disabled={authLoading}>{authLoading ? "VerifyingÖ" : "Enter Admin Panel"}</Button>
           </form>
-        </div>
-      </div>
-    );
-  }
-
-  const auth = { u: username, p: password };
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> },
-    { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> },
-    { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
-    { id: "team-members", label: "Team Members", icon: <GraduationCap className="h-4 w-4" /> },
-    { id: "lab-rentals", label: "Lab Rentals", icon: <Server className="h-4 w-4" /> },
-    { id: "access", label: "Access", icon: <CheckCircle className="h-4 w-4" /> },
-  ];
-
-  return (
-    <div className="min-h-screen bg-muted/20 dark:bg-background pt-16">
-      <div className="sticky top-16 z-40 bg-white dark:bg-card border-b border-border shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-1">
-              {tabs.map((t) => (
-                <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    tab === t.id ? "bg-primary text-white" : "text-foreground/60 hover:text-foreground hover:bg-muted"
-                  }`}>
-                  {t.icon}
-                  <span className="hidden sm:inline">{t.label}</span>
-                </button>
-              ))}
-            </div>
-            <button onClick={() => { setAuthed(false); setUsername(""); setPassword(""); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {tab === "courses" && <CoursesTab auth={auth} />}
-        {tab === "students" && <StudentsTab auth={auth} />}
-        {tab === "orders" && <OrdersTab auth={auth} />}
-        {tab === "team-members" && <TrainersTab auth={auth} />}
-        {tab === "lab-rentals" && <LabsTab auth={auth} />}
-        {tab === "access" && <AccessManager auth={auth} />}
+          <button type="button" className="mt-5 w-full text-sm text-primary font-medium hover:underline" onClick={() => setResetRequest(true)}>Forgot password?</button>
+        </>}
       </div>
     </div>
   );
+
+  const auth = { u: username, p: password };
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> }, { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> }, { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> }, { id: "team-members", label: "Team Members", icon: <GraduationCap className="h-4 w-4" /> }, { id: "lab-rentals", label: "Lab Rentals", icon: <Server className="h-4 w-4" /> }, { id: "access", label: "Access", icon: <CheckCircle className="h-4 w-4" /> },
+  ];
+  return <div className="min-h-screen bg-muted/20 dark:bg-background pt-16"><div className="sticky top-16 z-40 bg-white dark:bg-card border-b border-border shadow-sm"><div className="max-w-6xl mx-auto px-4 sm:px-6"><div className="flex items-center justify-between h-14"><div className="flex items-center gap-1">{tabs.map((t) => <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.id ? "bg-primary text-white" : "text-foreground/60 hover:text-foreground hover:bg-muted"}`}>{t.icon}<span className="hidden sm:inline">{t.label}</span></button>)}</div><button onClick={() => { setAuthed(false); setUsername(""); setPassword(""); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Logout</span></button></div></div></div><div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">{tab === "courses" && <CoursesTab auth={auth} />}{tab === "students" && <StudentsTab auth={auth} />}{tab === "orders" && <OrdersTab auth={auth} />}{tab === "team-members" && <TrainersTab auth={auth} />}{tab === "lab-rentals" && <LabsTab auth={auth} />}{tab === "access" && <AccessManager auth={auth} />}</div></div>;
 }
