@@ -16,15 +16,14 @@ test("migration preserves legacy USD pricing and leaves INR unconfigured", () =>
   assert.doesNotMatch(migration, /price_inr\s*=\s*price/);
 });
 
-test("regional price validation permits free USD labs and rejects invalid relationships", () => {
-  assert.deepEqual(validateLabPricing({ price_usd: 0, price_inr: "", discounted_price_inr: "" }), { price_usd: 0, discounted_price_usd: null, price_inr: null, discounted_price_inr: null, price: 0, discounted_price: null });
+test("canonical USD price validation permits free Labs and rejects invalid relationships", () => {
+  assert.deepEqual(validateLabPricing({ price_usd: 0 }), { price_usd: 0, discounted_price_usd: null, price: 0, discounted_price: null });
   assert.throws(() => validateLabPricing({ price_usd: -1 }), /non-negative/);
   assert.throws(() => validateLabPricing({ price_usd: 10, discounted_price_usd: 10 }), /lower/);
-  assert.throws(() => validateLabPricing({ price_usd: 10, discounted_price_inr: 100 }), /required/);
 });
 
-test("empty INR stores NULL without changing USD pricing", () => {
-  assert.deepEqual(validateLabPricing({ price_inr: "", discounted_price_inr: "" }, { price_usd: 12.5, discounted_price_usd: 10, price_inr: 999, discounted_price_inr: 899 }), { price_usd: 12.5, discounted_price_usd: 10, price_inr: null, discounted_price_inr: null, price: 12.5, discounted_price: 10 });
+test("legacy INR fields do not participate in canonical pricing", () => {
+  assert.deepEqual(validateLabPricing({ price_inr: "", discounted_price_inr: "" }, { price_usd: 12.5, discounted_price_usd: 10 }), {});
 });
 
 test("pricing writes remain admin-only and server-side validated", () => {
@@ -34,9 +33,11 @@ test("pricing writes remain admin-only and server-side validated", () => {
   assert.match(updateHandler, /validateLabPricing\(body, current\)/);
 });
 
-test("admin separates USD and INR pricing", () => {
-  assert.match(adminPage, /International Pricing \(USD\)/);
-  assert.match(adminPage, /India Pricing \(INR\)/);
-  assert.match(adminPage, /Regular Price \(INR\)/);
-  assert.match(adminPage, /Not configured/);
+test("admin exposes USD pricing only and preserves legacy INR fields", () => {
+  assert.match(adminPage, /Lab Pricing \(USD\)/);
+  assert.doesNotMatch(adminPage, /India Pricing \(INR\)|Regular Price \(INR\)|formatINR/);
+  assert.match(createHandler, /delete body\.price_inr/);
+  assert.match(createHandler, /delete body\.discounted_price_inr/);
+  assert.match(updateHandler, /delete body\.price_inr/);
+  assert.match(updateHandler, /delete body\.discounted_price_inr/);
 });

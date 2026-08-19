@@ -23,15 +23,19 @@ export default async function handler(req, res) {
       delete body.id;
       delete body.created_at;
       delete body.updated_at;
+      // Preserve legacy INR values already stored on this Lab, but never
+      // allow an Admin client to create, change, or clear them.
+      delete body.price_inr;
+      delete body.discounted_price_inr;
 
       if (Object.keys(body).length === 0) {
         return res.status(400).json({ error: "Request body is empty — nothing to update." });
       }
 
-      const hasPricing = ["price_usd", "discounted_price_usd", "price_inr", "discounted_price_inr"].some((field) => Object.hasOwn(body, field));
+      const hasPricing = ["price_usd", "discounted_price_usd"].some((field) => Object.hasOwn(body, field));
       let pricing = {};
       if (hasPricing) {
-        const { data: current, error: currentError } = await supabase.from("labs").select("price_usd, discounted_price_usd, price_inr, discounted_price_inr").eq("id", id).maybeSingle();
+        const { data: current, error: currentError } = await supabase.from("labs").select("price_usd, discounted_price_usd").eq("id", id).maybeSingle();
         if (currentError) throw currentError;
         if (!current) return res.status(404).json({ error: `Lab "${id}" not found.` });
         pricing = validateLabPricing(body, current);

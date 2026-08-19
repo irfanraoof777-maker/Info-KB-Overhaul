@@ -92,8 +92,6 @@ interface Lab {
   discounted_price: number | null;
   price_usd?: number | null;
   discounted_price_usd?: number | null;
-  price_inr?: number | null;
-  discounted_price_inr?: number | null;
   enabled: boolean;
   created_at: string;
 }
@@ -102,7 +100,6 @@ type Tab = "courses" | "students" | "orders" | "team-members" | "lab-rentals" | 
 
 type LabForm = Omit<Lab, "id" | "created_at" | "price" | "discounted_price">;
 
-const formatINR = (value: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(value);
 
 const BLANK_LAB: LabForm = {
   title: "",
@@ -112,8 +109,6 @@ const BLANK_LAB: LabForm = {
   duration: "",
   price_usd: 0,
   discounted_price_usd: null,
-  price_inr: null,
-  discounted_price_inr: null,
   enabled: true,
 };
 
@@ -1311,7 +1306,7 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setForm({ ...BLANK_LAB, ...initial, price_usd: initial?.price_usd ?? initial?.price ?? 0, discounted_price_usd: initial?.discounted_price_usd ?? initial?.discounted_price ?? null, price_inr: initial?.price_inr ?? null, discounted_price_inr: initial?.discounted_price_inr ?? null });
+    setForm({ ...BLANK_LAB, ...initial, price_usd: initial?.price_usd ?? initial?.price ?? 0, discounted_price_usd: initial?.discounted_price_usd ?? initial?.discounted_price ?? null });
     setError("");
   }, [initial, open]);
 
@@ -1386,17 +1381,10 @@ function LabModal({ open, onClose, initial, auth, onSaved }: LabModalProps) {
           </div>
 
           <div className="space-y-3 rounded-lg border border-border p-4">
-            <div><h3 className="font-medium text-foreground">International Pricing (USD)</h3><p className="text-xs text-muted-foreground">Used for international checkout.</p></div>
+            <div><h3 className="font-medium text-foreground">Lab Pricing (USD)</h3><p className="text-xs text-muted-foreground">Used as the canonical Lab price. INR checkout is calculated automatically.</p></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5"><Label>Regular Price (USD)</Label><Input type="number" min="0" step="0.01" value={form.price_usd ?? 0} onChange={(e) => set("price_usd", parseFloat(e.target.value) || 0)} placeholder="0.00" /></div>
-              <div className="space-y-1.5"><Label>Discounted Price (USD) <span className="text-muted-foreground font-normal">— optional</span></Label><Input type="number" min="0" step="0.01" value={form.discounted_price_usd ?? ""} onChange={(e) => { const v = e.target.value; set("discounted_price_usd", v === "" ? null : parseFloat(v) || 0); }} placeholder="Leave blank for no discount" /></div>
-            </div>
-          </div>
-          <div className="space-y-3 rounded-lg border border-border p-4">
-            <div><h3 className="font-medium text-foreground">India Pricing (INR)</h3><p className="text-xs text-muted-foreground">Optional for now. Leave both fields empty until India pricing is configured.</p></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5"><Label>Regular Price (INR) <span className="text-muted-foreground font-normal">— optional</span></Label><Input type="number" min="0" step="0.01" value={form.price_inr ?? ""} onChange={(e) => { const v = e.target.value; set("price_inr", v === "" ? null : parseFloat(v) || 0); }} placeholder="Leave blank until configured" /></div>
-              <div className="space-y-1.5"><Label>Discounted Price (INR) <span className="text-muted-foreground font-normal">— optional</span></Label><Input type="number" min="0" step="0.01" value={form.discounted_price_inr ?? ""} onChange={(e) => { const v = e.target.value; set("discounted_price_inr", v === "" ? null : parseFloat(v) || 0); }} placeholder="Leave blank for no discount" /></div>
+              <div className="space-y-1.5"><Label>Discounted Price (USD) <span className="text-muted-foreground font-normal">â€” optional</span></Label><Input type="number" min="0" step="0.01" value={form.discounted_price_usd ?? ""} onChange={(e) => { const v = e.target.value; set("discounted_price_usd", v === "" ? null : parseFloat(v) || 0); }} placeholder="Leave blank for no discount" /></div>
             </div>
           </div>
           {/* Enabled toggle */}
@@ -1531,8 +1519,7 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
                   <th className="text-left px-4 py-3 font-medium text-foreground/70">Lab</th>
                   <th className="text-left px-4 py-3 font-medium text-foreground/70 hidden md:table-cell">Category</th>
                   <th className="text-left px-4 py-3 font-medium text-foreground/70 hidden lg:table-cell">Duration</th>
-                  <th className="text-right px-4 py-3 font-medium text-foreground/70 hidden sm:table-cell">International (USD)</th>
-                  <th className="text-right px-4 py-3 font-medium text-foreground/70 hidden md:table-cell">India (INR)</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground/70 hidden sm:table-cell">Price (USD)</th>
                   <th className="text-center px-4 py-3 font-medium text-foreground/70 hidden sm:table-cell">Status</th>
                   <th className="text-right px-4 py-3 font-medium text-foreground/70">Actions</th>
                 </tr>
@@ -1571,14 +1558,6 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
                           <span className="text-xs text-muted-foreground line-through">{formatUSD(Number(lab.price_usd ?? lab.price))}</span>
                         </div>
                       ) : <span className="font-semibold text-foreground">{formatUSD(Number(lab.price_usd ?? lab.price))}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right hidden md:table-cell">
-                      {lab.price_inr == null ? <span className="text-muted-foreground">Not configured</span> : lab.discounted_price_inr != null ? (
-                        <div className="flex flex-col items-end leading-tight">
-                          <span className="font-semibold text-foreground">{formatINR(Number(lab.discounted_price_inr))}</span>
-                          <span className="text-xs text-muted-foreground line-through">{formatINR(Number(lab.price_inr))}</span>
-                        </div>
-                      ) : <span className="font-semibold text-foreground">{formatINR(Number(lab.price_inr))}</span>}
                     </td>
                     <td className="px-4 py-3 text-center hidden sm:table-cell">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${

@@ -34,6 +34,10 @@ export default async function handler(req, res) {
     try {
       const supabase = getSupabaseAdmin();
       const body = { ...(req.body ?? {}) };
+      // INR values are retained in existing rows for audit only. New admin
+      // writes use USD as the sole canonical Lab price.
+      delete body.price_inr;
+      delete body.discounted_price_inr;
       const pricing = validateLabPricing(body);
       if (!Object.hasOwn(pricing, "price_usd")) {
         return res.status(400).json({ error: "Regular Price (USD) is required." });

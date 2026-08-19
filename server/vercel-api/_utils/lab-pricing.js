@@ -1,8 +1,6 @@
 const PRICE_FIELDS = [
   "price_usd",
   "discounted_price_usd",
-  "price_inr",
-  "discounted_price_inr",
 ];
 
 function parsePrice(value, field, { optional }) {
@@ -43,21 +41,14 @@ export function validateLabPricing(input, current = {}) {
 
   const priceUsd = parsePrice(requestedOrCurrent(input, current, "price_usd"), "price_usd", { optional: false });
   const discountUsd = parsePrice(requestedOrCurrent(input, current, "discounted_price_usd"), "discounted_price_usd", { optional: true });
-  const priceInr = parsePrice(requestedOrCurrent(input, current, "price_inr"), "price_inr", { optional: true });
-  const discountInr = parsePrice(requestedOrCurrent(input, current, "discounted_price_inr"), "discounted_price_inr", { optional: true });
 
   if (priceUsd === undefined) throw new Error("Regular Price (USD) is required.");
-  if (priceUsd < 0 || (priceInr !== null && priceInr !== undefined && priceInr < 0)) {
-    throw new Error("Regular prices cannot be negative.");
-  }
+  if (priceUsd < 0) throw new Error("Regular prices cannot be negative.");
   validateDiscount(discountUsd, priceUsd, "USD");
-  validateDiscount(discountInr, priceInr, "INR");
 
   return {
     price_usd: priceUsd,
     discounted_price_usd: discountUsd ?? null,
-    price_inr: priceInr ?? null,
-    discounted_price_inr: discountInr ?? null,
     // Keep public pages on their legacy USD display contract during this stage.
     price: priceUsd,
     discounted_price: discountUsd ?? null,
