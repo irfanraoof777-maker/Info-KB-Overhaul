@@ -26,3 +26,13 @@ test("History is view-only while pending retains provisioning controls", () => {
   assert.match(accessManager, /Save Guacamole URL/);
   assert.doesNotMatch(accessManager, /rentalView === "history"[^\n]*Save Guacamole URL/);
 });
+
+test("Lab rental actions are non-submitting and refresh React state without navigation", () => {
+  assert.doesNotMatch(accessManager, /window\.location|location\.reload|reload\(/);
+  assert.ok((accessManager.match(/type="button"/g) ?? []).length >= 7);
+  assert.match(accessManager, /action: "cancel"/);
+  assert.match(accessManager, /action: "update_schedule"/);
+  assert.match(accessManager, /saveLaunchUrl\(item\.id\)/);
+  assert.match(accessManager, /assignLabManually\(\)/);
+  assert.match(accessManager, /if \(!data\) throw new Error\(failureMessage\); await load\(\); return data;/);
+});
