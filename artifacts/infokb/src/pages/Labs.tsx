@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, X, Loader2, Server, Clock, Tag } from "lucide-react";
+import {
+  Search,
+  X,
+  Loader2,
+  Server,
+  Clock,
+  Tag,
+  Building2,
+  ArrowRight,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { formatUSDPrice } from "@/lib/currency";
@@ -20,17 +29,17 @@ interface DbLab {
 }
 
 const categoryColors: Record<string, string> = {
-  "Cloud": "text-blue-600",
-  "DevOps": "text-violet-600",
+  Cloud: "text-blue-600",
+  DevOps: "text-violet-600",
   "AI/ML": "text-purple-600",
-  "Cybersecurity": "text-red-600",
-  "Networking": "text-cyan-600",
-  "Database": "text-orange-600",
-  "Programming": "text-green-600",
-  "Infrastructure": "text-indigo-600",
-  "Agile": "text-pink-600",
-  "Management": "text-teal-600",
-  "Other": "text-gray-600",
+  Cybersecurity: "text-red-600",
+  Networking: "text-cyan-600",
+  Database: "text-orange-600",
+  Programming: "text-green-600",
+  Infrastructure: "text-indigo-600",
+  Agile: "text-pink-600",
+  Management: "text-teal-600",
+  Other: "text-gray-600",
 };
 
 const CARD_GRADIENTS = [
@@ -54,7 +63,8 @@ interface LabCardProps {
 function LabCard({ lab, index }: LabCardProps) {
   const [, navigate] = useLocation();
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length];
-  const hasDiscount = lab.discounted_price != null && lab.discounted_price < lab.price;
+  const hasDiscount =
+    lab.discounted_price != null && lab.discounted_price < lab.price;
 
   return (
     <motion.div
@@ -80,7 +90,10 @@ function LabCard({ lab, index }: LabCardProps) {
           />
         ) : (
           <>
-            <div className="absolute inset-0" style={{ background: gradient }} />
+            <div
+              className="absolute inset-0"
+              style={{ background: gradient }}
+            />
             <div className="absolute inset-0 flex items-center justify-center">
               <Server className="h-12 w-12 text-white/20" />
             </div>
@@ -88,7 +101,8 @@ function LabCard({ lab, index }: LabCardProps) {
         )}
         {lab.duration && (
           <span className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-sm text-white text-xs font-medium px-2.5 py-1 rounded-lg flex items-center gap-1.5">
-            <Clock className="h-3 w-3" />{lab.duration}
+            <Clock className="h-3 w-3" />
+            {lab.duration}
           </span>
         )}
       </div>
@@ -96,8 +110,11 @@ function LabCard({ lab, index }: LabCardProps) {
       {/* Card body */}
       <div className="p-5 flex flex-col flex-1">
         {lab.category && (
-          <span className={`text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1 ${categoryColors[lab.category] ?? "text-primary"}`}>
-            <Tag className="h-3 w-3" />{lab.category}
+          <span
+            className={`text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1 ${categoryColors[lab.category] ?? "text-primary"}`}
+          >
+            <Tag className="h-3 w-3" />
+            {lab.category}
           </span>
         )}
 
@@ -115,16 +132,25 @@ function LabCard({ lab, index }: LabCardProps) {
           <div className="flex items-center justify-between mb-3">
             {hasDiscount ? (
               <div className="flex items-baseline gap-2">
-                <span className="text-lg font-extrabold text-foreground">{formatUSDPrice(lab.discounted_price!)}</span>
-                <span className="text-sm text-muted-foreground line-through">{formatUSDPrice(lab.price)}</span>
+                <span className="text-lg font-extrabold text-foreground">
+                  {formatUSDPrice(lab.discounted_price!)}
+                </span>
+                <span className="text-sm text-muted-foreground line-through">
+                  {formatUSDPrice(lab.price)}
+                </span>
               </div>
             ) : (
-              <span className="text-lg font-extrabold text-foreground">{formatUSDPrice(lab.price)}</span>
+              <span className="text-lg font-extrabold text-foreground">
+                {formatUSDPrice(lab.price)}
+              </span>
             )}
           </div>
           <button
             className="w-full py-2.5 bg-[#23B33A] hover:bg-[#1ca033] text-white text-sm font-semibold rounded-xl text-center transition-colors"
-            onClick={(e) => { e.stopPropagation(); navigate(`/labs/${lab.id}`); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/labs/${lab.id}`);
+            }}
           >
             View Lab
           </button>
@@ -176,7 +202,7 @@ export default function Labs() {
       setLabs(rows);
 
       const uniqueCats = Array.from(
-        new Set(rows.map((l) => l.category).filter(Boolean))
+        new Set(rows.map((l) => l.category).filter(Boolean)),
       );
       setCategories(["All", ...uniqueCats]);
 
@@ -187,7 +213,8 @@ export default function Labs() {
   }, []);
 
   const filtered = labs.filter((lab) => {
-    const matchesCategory = activeCategory === "All" || lab.category === activeCategory;
+    const matchesCategory =
+      activeCategory === "All" || lab.category === activeCategory;
     const q = search.toLowerCase();
     const matchesSearch =
       !q ||
@@ -216,7 +243,8 @@ export default function Labs() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            Train anywhere, practice everywhere&mdash;your virtual lab for real-world IT mastery.
+            Train anywhere, practice everywhere&mdash;your virtual lab for
+            real-world IT mastery.
           </motion.p>
           <motion.p
             className="text-white/70 text-base max-w-xl mx-auto"
@@ -224,13 +252,13 @@ export default function Labs() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
           >
-            Hands-on virtual lab environments for Cloud, DevOps, Cybersecurity, and more. Practice in real infrastructure without any setup.
+            Hands-on virtual lab environments for Cloud, DevOps, Cybersecurity,
+            and more. Practice in real infrastructure without any setup.
           </motion.p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-
         {loading ? (
           <div className="flex flex-col items-center justify-center py-28 gap-3 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -243,56 +271,80 @@ export default function Labs() {
         ) : labs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
             <Server className="h-14 w-14 text-muted-foreground/30" />
-            <h3 className="text-xl font-semibold text-foreground">No labs available yet</h3>
+            <h3 className="text-xl font-semibold text-foreground">
+              No labs available yet
+            </h3>
             <p className="text-muted-foreground text-sm max-w-xs">
-              Check back soon — new lab environments will appear here once they're published.
+              Check back soon — new lab environments will appear here once
+              they're published.
             </p>
           </div>
         ) : (
           <>
             {/* Search + Filter */}
-            <div className="mb-8 space-y-4">
-              <div className="relative max-w-lg">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search labs..."
-                  className="w-full pl-11 pr-10 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+            <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-4 lg:flex-1">
+                <div className="relative max-w-lg">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search labs..."
+                    className="w-full pl-11 pr-10 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Pills */}
+                {categories.length > 1 && (
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                          activeCategory === cat
+                            ? "bg-primary text-white shadow-sm"
+                            : "bg-background text-muted-foreground border border-border hover:border-primary hover:text-primary"
+                        }`}
+                      >
+                        {cat}
+                        {cat === "All" && (
+                          <span className="ml-1.5 text-xs opacity-70">
+                            ({labs.length})
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
-
-              {/* Category Pills */}
-              {categories.length > 1 && (
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setActiveCategory(cat)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                        activeCategory === cat
-                          ? "bg-primary text-white shadow-sm"
-                          : "bg-background text-muted-foreground border border-border hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {cat}
-                      {cat === "All" && (
-                        <span className="ml-1.5 text-xs opacity-70">({labs.length})</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
+            <Link
+              href="/contact?type=bulk-lab"
+              className="group flex w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 transition-colors hover:border-primary/40 hover:bg-primary/[0.07] lg:w-[22rem]"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
+                <Building2 className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-foreground">
+                  Corporate &amp; Bulk Lab Access
+                </span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                  Flexible access for teams, institutions, and training cohorts.
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+            </Link>
 
             {/* Results count */}
             <div className="flex items-center justify-between mb-6">
@@ -303,7 +355,10 @@ export default function Labs() {
               </p>
               {(search || activeCategory !== "All") && (
                 <button
-                  onClick={() => { setSearch(""); setActiveCategory("All"); }}
+                  onClick={() => {
+                    setSearch("");
+                    setActiveCategory("All");
+                  }}
                   className="text-sm text-primary hover:underline flex items-center gap-1"
                 >
                   <X className="h-3.5 w-3.5" /> Clear filters
@@ -334,12 +389,17 @@ export default function Labs() {
                   animate={{ opacity: 1 }}
                 >
                   <Search className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-40" />
-                  <h3 className="text-lg font-semibold text-foreground mb-2">No labs found</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    No labs found
+                  </h3>
                   <p className="text-muted-foreground text-sm mb-6">
                     Try a different search term or category.
                   </p>
                   <button
-                    onClick={() => { setSearch(""); setActiveCategory("All"); }}
+                    onClick={() => {
+                      setSearch("");
+                      setActiveCategory("All");
+                    }}
                     className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
                   >
                     View All Labs
@@ -351,11 +411,14 @@ export default function Labs() {
         )}
       </div>
 
-        <div className="pt-10 text-center">
-          <Link href="/lab-rental-terms" className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary">
-            Lab Rental Terms &amp; Conditions
-          </Link>
-    </div>
+      <div className="pt-10 text-center">
+        <Link
+          href="/lab-rental-terms"
+          className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary"
+        >
+          Lab Rental Terms &amp; Conditions
+        </Link>
       </div>
+    </div>
   );
 }

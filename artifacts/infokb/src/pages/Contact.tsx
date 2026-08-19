@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, Mail, MapPin, CheckCircle, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import BulkLabContact from "@/pages/BulkLabContact";
 
-export default function Contact() {
+function NormalContact() {
   useEffect(() => {
     document.title = "Contact Us | InfoKB";
   }, []);
@@ -53,7 +54,8 @@ export default function Contact() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            Have a question about a course? Ready to enroll? Our training advisors are here to help.
+            Have a question about a course? Ready to enroll? Our training
+            advisors are here to help.
           </motion.p>
         </div>
       </div>
@@ -68,9 +70,12 @@ export default function Contact() {
             transition={{ duration: 0.5 }}
           >
             <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">Get in Touch</h2>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Get in Touch
+              </h2>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Reach out and our team will respond within 24 hours. We'd love to help you find the right training program.
+                Reach out and our team will respond within 24 hours. We'd love
+                to help you find the right training program.
               </p>
             </div>
 
@@ -80,8 +85,13 @@ export default function Contact() {
                   <Phone className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Phone</div>
-                  <a href="tel:+919652429090" className="font-semibold text-foreground hover:text-primary transition-colors text-sm">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Phone
+                  </div>
+                  <a
+                    href="tel:+919652429090"
+                    className="font-semibold text-foreground hover:text-primary transition-colors text-sm"
+                  >
                     +91-9652429090
                   </a>
                 </div>
@@ -92,8 +102,13 @@ export default function Contact() {
                   <Mail className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Email</div>
-                  <a href="mailto:info@infokb.com" className="font-semibold text-foreground hover:text-primary transition-colors text-sm">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Email
+                  </div>
+                  <a
+                    href="mailto:info@infokb.com"
+                    className="font-semibold text-foreground hover:text-primary transition-colors text-sm"
+                  >
                     info@infokb.com
                   </a>
                 </div>
@@ -104,9 +119,13 @@ export default function Contact() {
                   <MapPin className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Location</div>
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Location
+                  </div>
                   <div className="font-semibold text-foreground text-sm">
-                    Hyderabad, Telangana<br />India
+                    Hyderabad, Telangana
+                    <br />
+                    India
                   </div>
                 </div>
               </div>
@@ -116,7 +135,9 @@ export default function Contact() {
                   <Clock className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Business Hours</div>
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Business Hours
+                  </div>
                   <div className="font-semibold text-foreground text-sm">
                     Mon–Sat: 9:00 AM – 7:00 PM IST
                   </div>
@@ -156,34 +177,47 @@ export default function Contact() {
                   >
                     <CheckCircle className="h-16 w-16 text-[#23B33A] mx-auto mb-5" />
                   </motion.div>
-                  <h3 className="text-2xl font-bold text-foreground mb-3">Message Sent!</h3>
+                  <h3 className="text-2xl font-bold text-foreground mb-3">
+                    Message Sent!
+                  </h3>
                   <p className="text-muted-foreground max-w-sm mx-auto">
-                    Thank you for reaching out. Our training advisors will contact you within 24 hours.
+                    Thank you for reaching out. Our training advisors will
+                    contact you within 24 hours.
                   </p>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl font-bold text-foreground mb-6">Send Us a Message</h2>
+                  <h2 className="text-2xl font-bold text-foreground mb-6">
+                    Send Us a Message
+                  </h2>
                   <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Full Name *</label>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          Full Name *
+                        </label>
                         <input
                           type="text"
                           required
                           value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, name: e.target.value })
+                          }
                           className="w-full px-4 py-3 border border-border rounded-xl text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                           placeholder="Your full name"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Email Address *</label>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          Email Address *
+                        </label>
                         <input
                           type="email"
                           required
                           value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
                           className="w-full px-4 py-3 border border-border rounded-xl text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                           placeholder="you@company.com"
                         />
@@ -192,25 +226,35 @@ export default function Contact() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Phone Number</label>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          Phone Number
+                        </label>
                         <input
                           type="tel"
                           value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value })
+                          }
                           className="w-full px-4 py-3 border border-border rounded-xl text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                           placeholder="+91 ..."
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Interested Course</label>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                          Interested Course
+                        </label>
                         <select
                           value={formData.course}
-                          onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, course: e.target.value })
+                          }
                           className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all bg-background text-foreground"
                         >
                           <option value="">Select a course...</option>
                           {courseNames.map((name) => (
-                            <option key={name} value={name}>{name}</option>
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
                           ))}
                           <option value="Not sure">Not sure yet</option>
                         </select>
@@ -218,10 +262,14 @@ export default function Contact() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Message</label>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                        Message
+                      </label>
                       <textarea
                         value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, message: e.target.value })
+                        }
                         rows={5}
                         className="w-full px-4 py-3 border border-border rounded-xl text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none"
                         placeholder="Tell us about your training needs, preferred dates, or any questions you have..."
@@ -243,4 +291,10 @@ export default function Contact() {
       </div>
     </div>
   );
+}
+
+export default function Contact() {
+  const bulkMode =
+    new URLSearchParams(window.location.search).get("type") === "bulk-lab";
+  return bulkMode ? <BulkLabContact /> : <NormalContact />;
 }
