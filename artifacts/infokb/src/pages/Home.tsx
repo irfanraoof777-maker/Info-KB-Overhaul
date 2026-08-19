@@ -218,6 +218,13 @@ export default function Home() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
+                href="/labs"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#23B33A] hover:bg-[#1ca033] text-white font-semibold rounded-xl transition-colors text-sm"
+              >
+                Browse Lab Rentals
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
                 href="/contact"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold rounded-xl transition-colors text-sm"
               >
