@@ -26,7 +26,7 @@ test("History is view-only while pending retains provisioning controls", () => {
   assert.match(accessManager, /Save Guacamole URL/);
   assert.doesNotMatch(accessManager, /rentalView === "history"[^\n]*Save Guacamole URL/);
 });
-  assert.match(accessManager, /Delete this rental history entry\? This action cannot be undone\./);
+  assert.match(accessManager, /Remove this rental from Admin History\? The rental record will be preserved\./);
   assert.match(accessManager, /method: "DELETE"/);
   assert.match(accessManager, /rentalView === "history" \? \(/);
   assert.match(accessManager, /setRentals\(\(current\) => current\.filter\(\(item\) => item\.id !== rentalId\)\)/);

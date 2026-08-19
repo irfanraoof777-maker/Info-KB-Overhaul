@@ -14,6 +14,7 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from("lab_rentals")
         .select("id, user_id, lab_id, state, source, starts_at, expires_at, ready_at, cancelled_at, created_at, updated_at")
+        .is("admin_history_hidden_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const now = new Date();

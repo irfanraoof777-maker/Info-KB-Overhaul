@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   if (!UUID_PATTERN.test(id)) return res.status(400).json({ error: "Lab rental ID is invalid." });
   try {
     if (req.method === "DELETE") {
-      const { data, error } = await supabase.rpc("admin_delete_historical_lab_rental", { p_rental_id: id });
+      const { data, error } = await supabase.rpc("admin_hide_historical_lab_rental", { p_rental_id: id });
       if (error) throw error;
       return res.status(200).json({ rental: data });
     }

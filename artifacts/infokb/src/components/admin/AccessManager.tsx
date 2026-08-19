@@ -211,7 +211,7 @@ export default function AccessManager({
   const deleteHistoricalRental = async (rentalId: string) => {
     if (
       !confirm(
-        "Delete this rental history entry? This action cannot be undone.",
+        "Remove this rental from Admin History? The rental record will be preserved.",
       )
     )
       return;
@@ -228,14 +228,14 @@ export default function AccessManager({
       if (!response.ok)
         throw new Error(
           data?.error ??
-            `Unable to delete this rental history entry (HTTP ${response.status}).`,
+            `Unable to remove this rental from Admin History (HTTP ${response.status}).`,
         );
       setRentals((current) => current.filter((item) => item.id !== rentalId));
     } catch (cause) {
       const message =
         cause instanceof Error
           ? cause.message
-          : "Unable to delete this rental history entry.";
+          : "Unable to remove this rental from Admin History.";
       setRentalErrors((current) => ({ ...current, [rentalId]: message }));
     } finally {
       setDeletingRentalId(null);
