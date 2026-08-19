@@ -282,7 +282,7 @@ export default function Labs() {
         ) : (
           <>
             {/* Search + Filter */}
-            <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start">
               <div className="space-y-4 lg:flex-1">
                 <div className="relative max-w-lg">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -327,45 +327,51 @@ export default function Labs() {
                   </div>
                 )}
               </div>
-            </div>
-            <Link
-              href="/contact?type=bulk-lab"
-              className="group flex w-full items-center gap-4 rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 transition-colors hover:border-primary/40 hover:bg-primary/[0.07] lg:w-[22rem]"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
-                <Building2 className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-foreground">
-                  Corporate &amp; Bulk Lab Access
+              <Link
+                href="/contact?type=bulk-lab"
+                className="group flex w-full items-start gap-4 rounded-2xl border border-primary/20 bg-primary/[0.05] p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.08] hover:shadow-md lg:col-start-2 lg:row-span-2"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
+                  <Building2 className="h-6 w-6" />
                 </span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-                  Flexible access for teams, institutions, and training cohorts.
+                <span className="min-w-0 flex-1 space-y-2">
+                  <span className="block text-base font-bold text-foreground">
+                    Corporate &amp; Bulk Lab Access
+                  </span>
+                  <span className="block text-sm font-medium leading-relaxed text-foreground/80">
+                    Need labs for your team or institution?
+                  </span>
+                  <span className="block text-xs leading-relaxed text-muted-foreground">
+                    Multiple users <span aria-hidden="true">&bull;</span> Volume
+                    pricing <span aria-hidden="true">&bull;</span> Custom labs
+                  </span>
+                  <span className="flex items-center gap-1 pt-1 text-sm font-semibold text-primary">
+                    Request Bulk Access{" "}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </span>
                 </span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
-            </Link>
+              </Link>
 
-            {/* Results count */}
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-muted-foreground text-sm">
-                {filtered.length === labs.length
-                  ? `Showing all ${filtered.length} lab${filtered.length !== 1 ? "s" : ""}`
-                  : `Showing ${filtered.length} of ${labs.length} labs`}
-              </p>
-              {(search || activeCategory !== "All") && (
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setActiveCategory("All");
-                  }}
-                  className="text-sm text-primary hover:underline flex items-center gap-1"
-                >
-                  <X className="h-3.5 w-3.5" /> Clear filters
-                </button>
-              )}
+              {/* Results count */}
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-muted-foreground text-sm">
+                  {filtered.length === labs.length
+                    ? `Showing all ${filtered.length} lab${filtered.length !== 1 ? "s" : ""}`
+                    : `Showing ${filtered.length} of ${labs.length} labs`}
+                </p>
+                {(search || activeCategory !== "All") && (
+                  <button
+                    onClick={() => {
+                      setSearch("");
+                      setActiveCategory("All");
+                    }}
+                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear filters
+                  </button>
+                )}
+              </div>
             </div>
-
             {/* Lab Grid */}
             <AnimatePresence mode="wait">
               {filtered.length > 0 ? (
