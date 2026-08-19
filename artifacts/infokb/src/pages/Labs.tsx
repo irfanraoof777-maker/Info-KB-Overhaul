@@ -329,23 +329,23 @@ export default function Labs() {
               </div>
               <Link
                 href="/contact?type=bulk-lab"
-                className="group flex w-full items-start gap-4 rounded-2xl border border-primary/20 bg-primary/[0.05] p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.08] hover:shadow-md lg:col-start-2 lg:row-span-2"
+                className="group flex w-full items-start gap-3 rounded-2xl border border-primary/20 bg-primary/[0.05] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/[0.08] hover:shadow-md lg:col-start-2 lg:row-span-2"
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
-                  <Building2 className="h-6 w-6" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
+                  <Building2 className="h-5 w-5" />
                 </span>
-                <span className="min-w-0 flex-1 space-y-2">
+                <span className="min-w-0 flex-1 space-y-1.5">
                   <span className="block text-base font-bold text-foreground">
                     Corporate &amp; Bulk Lab Access
                   </span>
-                  <span className="block text-sm font-medium leading-relaxed text-foreground/80">
+                  <span className="block text-sm font-medium leading-snug text-foreground/80">
                     Need labs for your team or institution?
                   </span>
-                  <span className="block text-xs leading-relaxed text-muted-foreground">
+                  <span className="block text-xs leading-snug text-muted-foreground">
                     Multiple users <span aria-hidden="true">&bull;</span> Volume
                     pricing <span aria-hidden="true">&bull;</span> Custom labs
                   </span>
-                  <span className="flex items-center gap-1 pt-1 text-sm font-semibold text-primary">
+                  <span className="flex items-center gap-1 pt-0.5 text-sm font-semibold text-primary">
                     Request Bulk Access{" "}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </span>
