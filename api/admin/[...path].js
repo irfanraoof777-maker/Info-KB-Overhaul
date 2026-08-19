@@ -25,7 +25,7 @@ export const ADMIN_ROUTES = [
   route(/^courses\/([^/]+)$/, ["PUT", "DELETE"], courseById),
   route(/^db-status$/, ["GET"], dbStatus),
   route(/^lab-rentals$/, ["GET", "POST"], labRentals),
-  route(/^lab-rentals\/([^/]+)$/, ["PATCH"], labRentalById),
+  route(/^lab-rentals\/([^/]+)$/, ["PATCH", "DELETE"], labRentalById),
   route(/^labs$/, ["GET", "POST"], labs),
   route(/^labs\/([^/]+)$/, ["PUT", "DELETE"], labById),
   route(/^orders$/, ["GET"], orders),

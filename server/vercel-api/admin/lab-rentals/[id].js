@@ -2,19 +2,28 @@ import { checkBasicAuth, setCors } from "../../_utils/auth.js";
 import { getSupabaseAdmin } from "../../_utils/supabase.js";
 import { parseOptionalDate, validateWindow } from "../../_utils/access.js";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export default async function handler(req, res) {
   setCors(res);
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (!checkBasicAuth(req, res)) return;
-  if (req.method !== "PATCH") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "PATCH" && req.method !== "DELETE") return res.status(405).json({ error: "Method not allowed" });
 
   const id = typeof req.query.id === "string" ? req.query.id : "";
   const supabase = getSupabaseAdmin();
+  if (!UUID_PATTERN.test(id)) return res.status(400).json({ error: "Lab rental ID is invalid." });
   try {
+    if (req.method === "DELETE") {
+      const { data, error } = await supabase.rpc("admin_delete_historical_lab_rental", { p_rental_id: id });
+      if (error) throw error;
+      return res.status(200).json({ rental: data });
+    }
     const { data: current, error: currentError } = await supabase
       .from("lab_rentals")
       .select("id, user_id, lab_id, state, starts_at, expires_at, cancelled_at")
+
       .eq("id", id)
       .maybeSingle();
     if (currentError) throw currentError;
@@ -69,7 +78,11 @@ export default async function handler(req, res) {
       : error && typeof error === "object" && typeof error.message === "string"
         ? error.message
         : "Lab rental request failed.";
-    const status = /cannot|requires|already|unsupported|supplied|valid|later|not awaiting|not preparing/.test(message.toLowerCase()) ? 400 : 500;
+    const status = /not found/.test(message.toLowerCase())
+      ? 404
+      : /cannot|requires|already|unsupported|supplied|valid|later|not awaiting|not preparing|only cancelled|payment records|notification history|guacamole|provisioning/.test(message.toLowerCase())
+        ? 400
+        : 500;
     return res.status(status).json({ error: message });
   }
 }

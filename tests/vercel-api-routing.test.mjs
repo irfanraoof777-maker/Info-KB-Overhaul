@@ -78,7 +78,7 @@ test("router rejects unknown paths and unsupported methods", async () => {
 test("Vercel rewrite and Admin router dispatch a realistic rental UUID PATCH", async () => {
   const rentalId = "8f6f91a8-2618-4e75-a662-f916fbdb7d4e";
   const entrypoint = readFileSync("api/admin/[...path].js", "utf8");
-  assert.match(entrypoint, /route\(\/\^lab-rentals\\\/\(\[\^\/\]\+\)\$\/, \["PATCH"\], labRentalById\)/);
+  assert.match(entrypoint, /route\(\/\^lab-rentals\\\/\(\[\^\/\]\+\)\$\/, \["PATCH", "DELETE"\], labRentalById\)/);
 
   const config = JSON.parse(readFileSync("vercel.json", "utf8"));
   assert.ok(config.rewrites.some((rewrite) =>
