@@ -1635,7 +1635,9 @@ export default function Admin() {
     setResetError(""); setResetLoading(true);
     try {
       const res = await fetch("/api/admin-password-reset/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      if (!res.ok) { const data = await res.json().catch(() => ({})) as { error?: string }; throw new Error(data.error ?? "Unable to send a reset link."); }
+      const data = await res.json().catch(() => ({})) as { error?: string; code?: string };
+      if (res.status === 429 && data.code === "RESET_COOLDOWN") { setResetError(data.error ?? "A reset link was recently requested. Please wait a few minutes before trying again."); return; }
+      if (!res.ok) throw new Error(data.error ?? "Unable to send a reset link.");
       setResetSent(true);
     } catch (error) { setResetError(error instanceof Error ? error.message : "Unable to send a reset link."); }
     finally { setResetLoading(false); }

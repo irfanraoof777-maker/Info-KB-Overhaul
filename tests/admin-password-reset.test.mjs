@@ -19,6 +19,8 @@ test("Admin reset endpoint owns recipients and does not accept a browser email",
   assert.doesNotMatch(request, /req\.body\?\.email/);
   assert.match(request, /randomBytes\(32\)/);
   assert.match(request, /30 \* 60 \* 1000/);
+  assert.match(request, /res\.status\(429\)\.json\(\{ error: "A reset link was recently requested/);
+  assert.match(request, /Resend rejected email/);
 });
 
 test("Admin reset migration invalidates prior tokens and atomically consumes a token", () => {

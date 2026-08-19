@@ -21,8 +21,7 @@ export default async function handler(req, res) {
       p_expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     });
     if (error) throw error;
-    // Keep the response identical during the cooldown so callers cannot use it to spam recipients.
-    if (!accepted) return res.status(200).json({ ok: true });
+    if (!accepted) return res.status(429).json({ error: "A reset link was recently requested. Please wait a few minutes before trying again.", code: "RESET_COOLDOWN" });
 
     const resetLink = `${RESET_URL()}?token=${encodeURIComponent(token)}`;
     const text = `A password reset was requested for the InfoKB Admin panel.\n\nReset Admin Password: ${resetLink}\n\nIf you did not request this password reset, you can ignore this email.`;
@@ -31,7 +30,11 @@ export default async function handler(req, res) {
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from, to: RECIPIENTS, subject: "InfoKB Admin Password Reset", text, html: `<p>A password reset was requested for the InfoKB Admin panel.</p><p><a href="${resetLink}">Reset Admin Password</a></p><p>If you did not request this password reset, you can ignore this email.</p>` }),
     });
-    if (!response.ok) throw new Error(`Email provider returned ${response.status}`);
+    const responseBody = await response.text();
+    if (!response.ok) {
+      console.error("[admin-password-reset] Resend rejected email", { status: response.status, body: responseBody.slice(0, 2000) });
+      throw new Error(`Email provider returned ${response.status}`);
+    }
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error("[admin-password-reset] request failed", error);
