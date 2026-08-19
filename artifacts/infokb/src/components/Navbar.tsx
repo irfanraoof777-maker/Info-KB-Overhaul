@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Phone, LogIn, UserPlus, LayoutDashboard, LogOut, Sun, Moon, ShieldCheck } from "lucide-react";
+import { Menu, X, Phone, LogIn, UserPlus, LayoutDashboard, LogOut, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -158,15 +158,6 @@ export default function Navbar() {
                     </Button>
                   </div>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`hidden md:flex ${!solidBg ? "text-white/70 hover:text-white hover:bg-white/10" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => navigate("/admin")}
-                  title="Admin Panel"
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                </Button>
               </>
             )}
 
@@ -269,14 +260,6 @@ export default function Navbar() {
                   </>
                 )}
               </button>
-
-              <Link
-                href="/admin"
-                className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Admin Panel
-              </Link>
 
               <a
                 href="tel:+919652429090"
