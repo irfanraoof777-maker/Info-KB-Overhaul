@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Search, ArrowRight, CheckCircle, Star, Users, BookOpen, Award, Clock, Loader2 } from "lucide-react";
+import { Search, ArrowRight, CheckCircle, Star, Users, BookOpen, Award, Clock, Loader2, Server, Tag, Building2 } from "lucide-react";
 import CourseCard from "@/components/CourseCard";
 import { testimonials } from "@/data/courses";
 import type { Course, Category } from "@/data/courses";
 import { supabase } from "@/lib/supabase";
 
-// ── DB row shape ──────────────────────────────────────────────────────────────
+// -- DB row shape --------------------------------------------------------------
 interface DbCourse {
   id: string;
   name: string;
@@ -26,6 +26,20 @@ interface DbCourse {
   created_at: string;
 }
 
+interface DbLab {
+  id: string;
+  title: string;
+  image_url: string | null;
+  category: string | null;
+  duration: string | null;
+  created_at: string;
+}
+
+const LAB_GRADIENTS = [
+  "linear-gradient(135deg, #0a192f 0%, #1a3a5c 50%, #0d2137 100%)",
+  "linear-gradient(135deg, #001219 0%, #005f73 50%, #0a9396 100%)",
+  "linear-gradient(135deg, #134e4a 0%, #0f766e 50%, #14b8a6 100%)",
+];
 const DB_GRADIENTS = [
   { gradient: "linear-gradient(135deg, #0a192f 0%, #1a3a5c 50%, #0d2137 100%)", accent: "#0ea5e9" },
   { gradient: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)", accent: "#7c3aed" },
@@ -83,6 +97,7 @@ export default function Home() {
   const [, navigate] = useLocation();
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
+  const [featuredLabs, setFeaturedLabs] = useState<DbLab[]>([]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +119,16 @@ export default function Home() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("labs")
+      .select("id,title,image_url,category,duration,created_at")
+      .eq("enabled", true)
+      .order("created_at", { ascending: false })
+      .limit(3)
+      .then(({ data }) => setFeaturedLabs((data ?? []) as DbLab[]));
+  }, []);
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -151,7 +176,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              From AWS and DevOps to Generative AI and Nutanix — hands-on training that actually gets you certified and hired.
+              From AWS and DevOps to Generative AI and Nutanix � hands-on training that actually gets you certified and hired.
             </motion.p>
 
             <motion.form
@@ -248,7 +273,7 @@ export default function Home() {
           {coursesLoading ? (
             <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="text-sm">Loading courses…</span>
+              <span className="text-sm">Loading courses�</span>
             </div>
           ) : featuredCourses.length > 0 ? (
             <>
@@ -281,6 +306,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Featured Lab Rentals */}
+      <section className="py-20 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div className="text-center mb-12" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <span className="text-[#23B33A] font-semibold text-sm uppercase tracking-wider">Hands-On Labs</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground mt-2 mb-4">Practice with Real Lab Environments</h2>
+            <p className="text-muted-foreground max-w-3xl mx-auto text-base leading-relaxed">Build practical skills with hands-on access to real IT lab environments. Practice VMware, NetApp, Nutanix, Cloud, Backup &amp; Recovery and more without setting up the infrastructure yourself.</p>
+          </motion.div>
+
+          {featuredLabs.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+              {featuredLabs.map((lab, index) => (
+                <motion.div key={lab.id} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: index * 0.08 }}>
+                  <Link href={`/labs/${lab.id}`} className="group block h-full overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <div className="relative h-44 overflow-hidden" style={{ background: LAB_GRADIENTS[index % LAB_GRADIENTS.length] }}>
+                      {lab.image_url ? <img src={lab.image_url} alt={lab.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 flex items-center justify-center"><Server className="h-12 w-12 text-white/25" /></div>}
+                      {lab.duration && <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm"><Clock className="h-3 w-3" />{lab.duration}</span>}
+                    </div>
+                    <div className="p-5">
+                      {lab.category && <span className="mb-2 flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-primary"><Tag className="h-3 w-3" />{lab.category}</span>}
+                      <h3 className="text-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">{lab.title}</h3>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          <div className="text-center">
+            <Link href="/labs" className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 font-semibold text-white transition-colors hover:bg-primary/90">Browse All Labs <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+
+          <div className="mt-10 flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/[0.05] p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-4">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><Building2 className="h-5 w-5" /></span>
+              <div>
+                <h3 className="font-bold text-foreground">Need labs for your team or institution?</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Corporate and bulk lab access is available for companies, training institutes, colleges and larger groups.</p>
+              </div>
+            </div>
+            <Link href="/contact?type=bulk-lab" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-primary px-5 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white">Request Bulk Access <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+        </div>
+      </section>
       {/* How it works */}
       <section className="py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
