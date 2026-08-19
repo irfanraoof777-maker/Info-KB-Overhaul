@@ -1,7 +1,26 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Phone, Mail, MapPin, Linkedin } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+
+interface FooterCourse {
+  id: string;
+  name: string;
+}
 
 export default function Footer() {
+  const [topCourses, setTopCourses] = useState<FooterCourse[]>([]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("courses")
+      .select("id,name")
+      .eq("is_published", true)
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => setTopCourses((data ?? []) as FooterCourse[]));
+  }, []);
   return (
     <footer className="bg-[#001f3d] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
@@ -52,19 +71,13 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-5 text-white/90 uppercase tracking-wider">Top Courses</h4>
             <ul className="space-y-3">
-              {[
-                { label: "Generative AI", href: "/courses/generative-ai" },
-                { label: "AWS Solution Architect", href: "/courses/aws-solution-architect-associate" },
-                { label: "Docker & Kubernetes", href: "/courses/docker-kubernetes" },
-                { label: "DevOps via Azure", href: "/courses/devops-via-microsoft-azure" },
-                { label: "Data Science", href: "/courses/data-science" },
-              ].map((link) => (
-                <li key={link.href}>
+              {topCourses.map((course) => (
+                <li key={course.id}>
                   <Link
-                    href={link.href}
+                    href={`/courses/${course.id}`}
                     className="text-white/60 hover:text-white text-sm transition-colors"
                   >
-                    {link.label}
+                    {course.name}
                   </Link>
                 </li>
               ))}
