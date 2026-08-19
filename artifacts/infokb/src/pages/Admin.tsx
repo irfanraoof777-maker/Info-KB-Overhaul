@@ -1474,9 +1474,15 @@ function LabsTab({ auth }: { auth: { u: string; p: string } }) {
     setDeletingId(id);
     try {
       const res = await fetch(`/api/admin/labs/${id}`, { method: "DELETE", headers: { Authorization: makeBasicAuth(auth.u, auth.p) } });
-      if (!res.ok) throw new Error("Delete failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? `Delete failed (HTTP ${res.status}).`);
+      }
       await load();
-    } catch { alert("Delete failed. Please try again."); }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Delete failed. Please try again.";
+      alert(message);
+    }
     finally { setDeletingId(null); }
   };
 

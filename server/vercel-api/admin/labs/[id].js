@@ -61,6 +61,19 @@ export default async function handler(req, res) {
   if (req.method === "DELETE") {
     try {
       const supabase = getSupabaseAdmin();
+      const [rentals, paymentOrders] = await Promise.all([
+        supabase.from("lab_rentals").select("id", { count: "exact", head: true }).eq("lab_id", id),
+        supabase.from("lab_payment_orders").select("id", { count: "exact", head: true }).eq("lab_id", id),
+      ]);
+      if (rentals.error || paymentOrders.error) throw rentals.error ?? paymentOrders.error;
+      const references = { labRentals: rentals.count ?? 0, labPaymentOrders: paymentOrders.count ?? 0 };
+      if (references.labRentals > 0 || references.labPaymentOrders > 0) {
+        return res.status(409).json({
+          error: "This lab has existing rental, access, or payment records and cannot be deleted. Disable the lab instead.",
+          code: "LAB_HAS_HISTORY",
+          references,
+        });
+      }
       const { error } = await supabase.from("labs").delete().eq("id", id);
       if (error) return res.status(500).json({ error: error.message ?? "Database delete failed." });
       return res.status(200).json({ success: true });
