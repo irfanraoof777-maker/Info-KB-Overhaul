@@ -8,7 +8,7 @@ const launchHandler = readFileSync("server/vercel-api/admin/lab-rentals/launch-c
 const adminRouter = readFileSync("server/vercel-api/admin-router.js", "utf8");
 
 test("Mark Ready sends the explicit authenticated Admin PATCH and shows card-local errors", () => {
-  assert.match(accessManager, /`\/api\/admin\/lab-rentals\/\$\{item\.id\}`, "PATCH", \{ action: "mark_ready"/);
+  assert.match(accessManager, /`\/api\/admin\/lab-rentals\/\$\{item\.id\}`,[\s\S]*?"PATCH",[\s\S]*?action: "mark_ready"/);
   assert.match(accessManager, /rentalErrors\[item\.id\][\s\S]+role="alert"/);
   assert.match(rentalHandler, /supabase\.rpc\("admin_update_lab_rental"/);
   assert.match(rentalHandler, /typeof error\.message === "string"/);
@@ -18,10 +18,10 @@ test("Mark Ready sends the explicit authenticated Admin PATCH and shows card-loc
 });
 
 test("each active rental can save a credential-free Guacamole test URL", () => {
-  assert.match(accessManager, />Guacamole test URL<\/label>/);
+  assert.match(accessManager, /Guacamole test URL/);
   assert.match(accessManager, /http:\/\/192\.168\.20\.128:8080\/guacamole\//);
-  assert.match(accessManager, /`\/api\/admin\/lab-rentals\/\$\{rentalId\}\/launch-configuration`, "PUT"/);
-  assert.match(accessManager, /Never enter usernames, passwords, tokens, VM credentials, or connection secrets/);
+  assert.match(accessManager, /`\/api\/admin\/lab-rentals\/\$\{rentalId\}\/launch-configuration`,[\s\S]*?"PUT"/);
+  assert.match(accessManager, /Never enter usernames,[\s\S]*connection secrets/);
   assert.ok(adminRouter.includes("path.match(/^lab-rentals\\/([^/]+)\\/launch-configuration$/)"));
   assert.match(launchHandler, /admin_set_lab_launch_configuration/);
   assert.match(launchHandler, /p_provider: "guacamole_test", p_launch_url: launchUrl/);

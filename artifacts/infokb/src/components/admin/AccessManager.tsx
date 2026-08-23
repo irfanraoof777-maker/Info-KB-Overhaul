@@ -38,6 +38,24 @@ const basic = (user: string, password: string) =>
   `Basic ${btoa(`${user}:${password}`)}`;
 const toUtcIso = (value: string) =>
   value ? new Date(value).toISOString() : null;
+const adminTimeZone =
+  Intl.DateTimeFormat().resolvedOptions().timeZone ?? "your local timezone";
+const formatUtcEquivalent = (value: string) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: "UTC",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+};
+const UtcTimestampPreview = ({ value }: { value: string }) => {
+  const formatted = formatUtcEquivalent(value);
+  return formatted ? (
+    <p className="text-xs text-muted-foreground">Stored as: {formatted} UTC</p>
+  ) : null;
+};
 const toLocalInput = (value: string | null) =>
   value
     ? new Date(
@@ -365,11 +383,14 @@ export default function AccessManager({
         )}
         {pending && (
           <>
+            <p className="text-xs text-muted-foreground">
+              Schedule times are entered in your local timezone ({adminTimeZone}) and stored as UTC.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
               <Input
                 type="datetime-local"
                 value={draft.startsAt}
-                aria-label="Lab rental start"
+                aria-label={`Lab rental start (admin local time: ${adminTimeZone})`}
                 onChange={(event) =>
                   setDrafts((current) => ({
                     ...current,
@@ -380,7 +401,7 @@ export default function AccessManager({
               <Input
                 type="datetime-local"
                 value={draft.expiresAt}
-                aria-label="Lab rental expiry"
+                aria-label={`Lab rental expiry (admin local time: ${adminTimeZone})`}
                 onChange={(event) =>
                   setDrafts((current) => ({
                     ...current,
@@ -408,6 +429,10 @@ export default function AccessManager({
               >
                 Save Dates
               </Button>
+            </div>
+            <div className="space-y-1">
+              <UtcTimestampPreview value={draft.startsAt} />
+              <UtcTimestampPreview value={draft.expiresAt} />
             </div>
             <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
               <label
@@ -609,6 +634,9 @@ export default function AccessManager({
         {showManualAssignment && (
           <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
             <p className="text-sm font-semibold">Manual assignment</p>
+            <p className="text-xs text-muted-foreground">
+              Schedule times are entered in your local timezone ({adminTimeZone}) and stored as UTC.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <select
                 className={selectClass}
@@ -638,13 +666,13 @@ export default function AccessManager({
                 type="datetime-local"
                 value={labStart}
                 onChange={(event) => setLabStart(event.target.value)}
-                aria-label="Lab start"
+                aria-label={`Lab start (admin local time: ${adminTimeZone})`}
               />
               <Input
                 type="datetime-local"
                 value={labExpiry}
                 onChange={(event) => setLabExpiry(event.target.value)}
-                aria-label="Lab expiry"
+                aria-label={`Lab expiry (admin local time: ${adminTimeZone})`}
               />
               <Button
                 type="button"
@@ -653,6 +681,10 @@ export default function AccessManager({
               >
                 Assign
               </Button>
+            </div>
+            <div className="space-y-1">
+              <UtcTimestampPreview value={labStart} />
+              <UtcTimestampPreview value={labExpiry} />
             </div>
           </div>
         )}

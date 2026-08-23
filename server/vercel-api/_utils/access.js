@@ -1,5 +1,8 @@
 export function parseOptionalDate(value, fieldName) {
   if (value === undefined) return undefined;
+  if (value !== null && value !== "" && (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value))) {
+    throw new Error(`${fieldName} must be an ISO date-time with an explicit timezone (Z or +HH:MM/-HH:MM).`);
+  }
   if (value === null || value === "") return null;
   if (typeof value !== "string") throw new Error(`${fieldName} must be an ISO date string or null.`);
   const date = new Date(value);
