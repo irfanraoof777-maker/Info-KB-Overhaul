@@ -1,6 +1,10 @@
 {
   "buildCommand": "PORT=3000 BASE_PATH=/ pnpm --filter @workspace/infokb run build",
   "outputDirectory": "artifacts/infokb/dist/public",
+  "redirects": [
+    { "source": "/storage-backup", "destination": "/courses", "permanent": true },
+    { "source": "/storage-backup/", "destination": "/courses", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/lab-rentals/:id/access", "destination": "/api/lab-rentals/free-claim?studentLabPath=:id/access" },
     { "source": "/api/lab-payments/razorpay/order", "destination": "/api/lab-payments?paymentPath=razorpay/order" },
