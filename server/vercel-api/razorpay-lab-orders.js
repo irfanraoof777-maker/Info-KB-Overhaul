@@ -24,6 +24,21 @@ function razorpayAuthHeader(keyId, keySecret) {
   return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
 }
 
+function usdCents(value) {
+  const text = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
+  const match = text.match(/^(\d+)(?:\.(\d{1,2}))?$/);
+  if (!match) return null;
+  return BigInt(match[1]) * 100n + BigInt((match[2] ?? "").padEnd(2, "0") || "0");
+}
+
+export function matchesCurrentUsdSnapshot(order, pricing) {
+  const orderCents = usdCents(order?.source_usd_amount);
+  const currentCents = usdCents(pricing?.usdAmount);
+  return orderCents !== null && currentCents !== null
+    && orderCents === currentCents
+    && order.usd_price_type === pricing.usdPriceType;
+}
+
 async function providerRequest(request, keyId, keySecret, path, options = {}) {
   const response = await request(`https://api.razorpay.com/v1${path}`, {
     ...options,
@@ -75,9 +90,13 @@ export function createRazorpayLabOrderHandler({ authenticate = requireStudent, r
         return res.status(409).json({ error: "You already have a current Lab rental." });
       }
 
+      // The current Lab price is authoritative; reuse requires a matching snapshot.
+      const pricing = payableUsdPrice(lab);
+      if (pricing.usdAmount === "0" || pricing.usdAmount === "0.0" || pricing.usdAmount === "0.00") return res.status(400).json({ error: "Free Labs must use the separate free-Lab flow." });
+
       let { data: order, error: existingError } = await auth.supabase
         .from("lab_payment_orders")
-        .select("id, receipt, amount_minor, currency, razorpay_order_id, status")
+        .select("id, receipt, amount_minor, currency, razorpay_order_id, status, source_usd_amount, usd_price_type")
         .eq("student_id", auth.user.id)
         .eq("lab_id", labId)
         .in("status", OPEN_ORDER_STATUSES)
@@ -86,9 +105,18 @@ export function createRazorpayLabOrderHandler({ authenticate = requireStudent, r
         .maybeSingle();
       if (existingError) throw existingError;
 
+      if (order && !matchesCurrentUsdSnapshot(order, pricing)) {
+        // Preserve the original provider order and conversion snapshot as history.
+        // "failed" is terminal and excluded from the existing open-order index.
+        const { error: staleOrderError } = await auth.supabase
+          .from("lab_payment_orders")
+          .update({ status: "failed", last_provider_error: "price_changed", updated_at: new Date().toISOString() })
+          .eq("id", order.id);
+        if (staleOrderError) throw staleOrderError;
+        order = null;
+      }
+
       if (!order) {
-        const pricing = payableUsdPrice(lab);
-        if (pricing.usdAmount === "0" || pricing.usdAmount === "0.0" || pricing.usdAmount === "0.00") return res.status(400).json({ error: "Free Labs must use the separate free-Lab flow." });
         const fx = await getFxRate();
         const amountMinor = usdToInrPaise(pricing.usdAmount, fx.rate);
         const id = randomUuid();
