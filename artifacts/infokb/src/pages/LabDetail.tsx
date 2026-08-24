@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Clock, Tag, ArrowLeft, Loader2, Server } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -59,6 +59,7 @@ interface DbLab {
 
 export default function LabDetail() {
   const params = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
 
   const [lab, setLab] = useState<DbLab | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,7 +188,7 @@ export default function LabDetail() {
         prefill: session.user.email ? { email: session.user.email } : undefined,
         handler: (checkoutResponse: RazorpayCheckoutResponse) => {
           setCheckoutResult(checkoutResponse);
-          setCheckoutStatus("Test payment received. Verifying securely…");
+          setCheckoutStatus("Test payment received. Verifying securelyï¿½");
           void (async () => {
             try {
               const verification = await fetch("/api/lab-payments/razorpay/verify", {
@@ -195,9 +196,9 @@ export default function LabDetail() {
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
                 body: JSON.stringify(checkoutResponse),
               });
-              const result = await verification.json().catch(() => ({})) as { error?: string; state?: string };
-              if (!verification.ok || result.state !== "preparing") throw new Error(result.error ?? "Payment verification is pending. Please check your dashboard shortly.");
-              setCheckoutStatus("Payment verified. Your Lab request is now pending preparation.");
+              const verified = await verification.json().catch(() => ({})) as { error?: string; verified?: boolean; state?: string };
+              if (!verification.ok || verified.verified !== true) throw new Error(verified.error ?? "Payment verification is pending. Please check your dashboard shortly.");
+              navigate("/dashboard");
             } catch (cause) {
               setPurchaseError(cause instanceof Error ? cause.message : "Payment verification is pending. Please check your dashboard shortly.");
               setCheckoutStatus("Payment received. We are waiting for secure verification.");
@@ -346,8 +347,10 @@ export default function LabDetail() {
                   className="w-full py-3.5 bg-[#23B33A] hover:bg-[#1ca033] disabled:bg-[#23B33A]/50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 text-base"
                   disabled={claiming || purchasing || !hasAcceptedTerms}
                 >
-                  {claiming || purchasing ? <><Loader2 className="h-4 w-4 animate-spin" />{isFree ? "Claiming…" : "Preparing checkout…"}</> : isFree ? "Get Free Lab" : "Purchase Lab"}
+                  {claiming || purchasing ? <><Loader2 className="h-4 w-4 animate-spin" />{isFree ? "Claimingï¿½" : "Preparing checkoutï¿½"}</> : isFree ? "Get Free Lab" : "Purchase Lab"}
                 </button>
+                {purchaseError && <p role="alert" className="text-sm text-destructive">{purchaseError}</p>}
+                {checkoutStatus && !isFree && <p role="status" aria-live="polite" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground dark:bg-primary/10">{checkoutStatus}</p>}
                 <div className="space-y-3 rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" checked={hasAcceptedTerms} onChange={(event) => setHasAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#23B33A]" />
@@ -362,8 +365,6 @@ export default function LabDetail() {
                 </div>
 
                 {claimError && <p role="alert" className="text-sm text-destructive">{claimError}</p>}
-                {purchaseError && <p role="alert" className="text-sm text-destructive">{purchaseError}</p>}
-                {checkoutStatus && !isFree && <p role="status" aria-live="polite" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground dark:bg-primary/10">{checkoutStatus}</p>}
                 <div className="pt-2 space-y-2 text-sm text-muted-foreground border-t border-border">
                   {lab.duration && (
                     <div className="flex items-center gap-2">
