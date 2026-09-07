@@ -213,3 +213,33 @@ test("Vercel rewrite and Admin router dispatch lab UUID PUT and DELETE without b
   }
   assert.deepEqual(dispatched, [{ method: "PUT", id: labId }, { method: "DELETE", id: labId }]);
 });
+
+test("Vercel rewrite and Admin router dispatch live class UUID GET, PUT, and DELETE", async () => {
+  const liveClassId = "a71d1817-3d55-4e77-9251-6ea05923e5f6";
+  const entrypoint = readFileSync("api/admin/[...path].js", "utf8");
+  const handler = readFileSync("server/vercel-api/admin/live-classes/[id].js", "utf8");
+  const config = JSON.parse(readFileSync("vercel.json", "utf8"));
+  assert.match(entrypoint, /route\(\/\^live-classes\\\/\(\[\^\/\]\+\)\$\/, \["GET", "PUT", "DELETE"\], liveClassById\)/);
+  assert.match(handler, /res\.status\(404\)\.json\(\{error:"Live class not found\."\}\)/);
+  assert.ok(config.rewrites.some((rewrite) =>
+    rewrite.source === "/api/admin/live-classes/:id"
+      && rewrite.destination === "/api/admin/live-classes?adminPath=live-classes/:id"
+  ));
+
+  const dispatched = [];
+  const router = createAdminRouter([{
+    pattern: /^live-classes\/([^/]+)$/,
+    methods: new Set(["GET", "PUT", "DELETE", "OPTIONS"]),
+    handler: (req, res) => { dispatched.push({ method: req.method, id: req.query.id }); return res.status(200).json({ ok: true }); },
+  }]);
+  for (const method of ["GET", "PUT", "DELETE"]) {
+    const res = response();
+    await router({ method, url: `/api/admin/live-classes?adminPath=live-classes/${liveClassId}`, query: { path: ["live-classes"], adminPath: `live-classes/${liveClassId}` } }, res);
+    assert.equal(res.statusCode, 200);
+  }
+  assert.deepEqual(dispatched, [
+    { method: "GET", id: liveClassId },
+    { method: "PUT", id: liveClassId },
+    { method: "DELETE", id: liveClassId },
+  ]);
+});

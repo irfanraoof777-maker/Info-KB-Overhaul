@@ -16,6 +16,7 @@
     { "source": "/api/admin/lab-rentals/:id/launch-configuration", "destination": "/api/admin/lab-rentals?adminPath=lab-rentals/:id/launch-configuration" },
     { "source": "/api/admin/lab-rentals/:id", "destination": "/api/admin/lab-rentals?adminPath=lab-rentals/:id" },
     { "source": "/api/admin/labs/:id", "destination": "/api/admin/labs?adminPath=labs/:id" },
+    { "source": "/api/admin/live-classes/:id", "destination": "/api/admin/live-classes?adminPath=live-classes/:id" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
