@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 
 const navLinks = [
   { label: "Home", href: "/" },
-  { label: "Courses", href: "/courses" },
+  { label: "All Courses", href: "/courses" },
   { label: "Live Classes", href: "/courses/live" },
+  { label: "Upcoming Classes", href: "/courses/live?filter=upcoming" },
   { label: "Lab Rentals", href: "/labs" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
@@ -39,7 +40,7 @@ export default function Navbar() {
     navigate("/");
   };
 
-  // Nav link classes — active on transparent hero should be white, not blue
+  // Nav link classes - active on transparent hero should be white, not blue
   function navLinkClass(active: boolean) {
     if (active && solidBg) return "text-primary bg-primary/8";
     if (active && !solidBg) return "text-white font-semibold bg-white/10";
