@@ -160,7 +160,7 @@ export default function Courses() {
             <p className="font-semibold text-foreground">Looking for instructor-led training?</p>
             <p className="mt-1 text-sm text-muted-foreground">Browse the upcoming live class schedule and register for a session.</p>
           </div>
-          <Link href="/courses/live?filter=upcoming" className="shrink-0 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90">Upcoming Classes</Link>
+          <Link href="/courses/live" className="shrink-0 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90">Upcoming Classes</Link>
         </div>
 
         {loading ? (
