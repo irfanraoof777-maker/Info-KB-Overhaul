@@ -177,7 +177,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              From AWS and DevOps to Generative AI and Nutanix — hands-on training that actually gets you certified and hired.
+              From AWS and DevOps to Generative AI and Nutanix - hands-on training that actually gets you certified and hired.
             </motion.p>
 
             <motion.form
@@ -236,6 +236,8 @@ export default function Home() {
         </div>
       </section>
 
+      <UpcomingLiveClassesSection />
+
       {/* Stats */}
       <section className="bg-background border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -281,7 +283,7 @@ export default function Home() {
           {coursesLoading ? (
             <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="text-sm">Loading courses…</span>
+              <span className="text-sm">Loading courses...</span>
             </div>
           ) : featuredCourses.length > 0 ? (
             <>
@@ -313,8 +315,6 @@ export default function Home() {
           )}
         </div>
       </section>
-
-      <UpcomingLiveClassesSection />
 
       {/* Featured Lab Rentals */}
       <section className="py-20 bg-background">

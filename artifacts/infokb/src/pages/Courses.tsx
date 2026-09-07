@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { Search, X, Loader2, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CourseCard from "@/components/CourseCard";
@@ -154,6 +155,13 @@ export default function Courses() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/15 bg-primary/5 px-5 py-4">
+          <div>
+            <p className="font-semibold text-foreground">Looking for instructor-led training?</p>
+            <p className="mt-1 text-sm text-muted-foreground">Browse the upcoming live class schedule and register for a session.</p>
+          </div>
+          <Link href="/courses/live?filter=upcoming" className="shrink-0 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90">Upcoming Classes</Link>
+        </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-28 gap-3 text-muted-foreground">
