@@ -10,6 +10,8 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import Home from "@/pages/Home";
 import Courses from "@/pages/Courses";
 import CourseDetail from "@/pages/CourseDetail";
+import LiveClasses from "@/pages/LiveClasses";
+import LiveClassDetail from "@/pages/LiveClassDetail";
 import Labs from "@/pages/Labs";
 import LabDetail from "@/pages/LabDetail";
 import About from "@/pages/About";
@@ -32,6 +34,8 @@ function Router() {
       <Navbar />
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/courses/live" component={LiveClasses} />
+        <Route path="/courses/live/:slug" component={LiveClassDetail} />
         <Route path="/courses" component={Courses} />
         <Route path="/courses/:slug" component={CourseDetail} />
         <Route path="/labs" component={Labs} />

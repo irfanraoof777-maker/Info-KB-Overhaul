@@ -6,6 +6,7 @@ import CourseCard from "@/components/CourseCard";
 import { testimonials } from "@/data/courses";
 import type { Course, Category } from "@/data/courses";
 import { supabase } from "@/lib/supabase";
+import UpcomingLiveClassesSection from "@/components/UpcomingLiveClassesSection";
 
 // -- DB row shape --------------------------------------------------------------
 interface DbCourse {
@@ -312,6 +313,8 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      <UpcomingLiveClassesSection />
 
       {/* Featured Lab Rentals */}
       <section className="py-20 bg-background">

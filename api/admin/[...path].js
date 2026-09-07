@@ -15,6 +15,8 @@ import teamMemberById from "../../server/vercel-api/admin/team-members/[id].js";
 import upload from "../../server/vercel-api/admin/upload.js";
 import uploadTeamPhoto from "../../server/vercel-api/admin/upload-team-photo.js";
 import verify from "../../server/vercel-api/admin/verify.js";
+import liveClasses from "../../server/vercel-api/admin/live-classes.js";
+import liveClassById from "../../server/vercel-api/admin/live-classes/[id].js";
 
 const route = (pattern, methods, handler) => ({ pattern, methods: new Set([...methods, "OPTIONS"]), handler });
 
@@ -28,6 +30,8 @@ export const ADMIN_ROUTES = [
   route(/^lab-rentals\/([^/]+)$/, ["PATCH", "DELETE"], labRentalById),
   route(/^labs$/, ["GET", "POST"], labs),
   route(/^labs\/([^/]+)$/, ["PUT", "DELETE"], labById),
+  route(/^live-classes$/, ["GET", "POST"], liveClasses),
+  route(/^live-classes\/([^/]+)$/, ["GET", "PUT", "DELETE"], liveClassById),
   route(/^orders$/, ["GET"], orders),
   route(/^students$/, ["GET"], students),
   route(/^team-members$/, ["GET", "POST"], teamMembers),

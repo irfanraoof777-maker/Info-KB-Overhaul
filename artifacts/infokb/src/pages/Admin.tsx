@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { formatUSD } from "@/lib/currency";
 import AccessManager from "@/components/admin/AccessManager";
+import LiveClassesManager from "@/components/admin/LiveClassesManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,7 @@ import {
   BookOpen, Users, ShoppingCart, LogOut, Plus, Pencil, Trash2,
   RefreshCw, AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   Copy, Eye, EyeOff, Upload, X, Loader2, PlusCircle, GraduationCap,
-  Server,
+  Server, CalendarDays,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ interface Lab {
   created_at: string;
 }
 
-type Tab = "courses" | "students" | "orders" | "team-members" | "lab-rentals" | "access";
+type Tab = "courses" | "students" | "orders" | "team-members" | "lab-rentals" | "live-classes" | "access";
 
 type LabForm = Omit<Lab, "id" | "created_at" | "price" | "discounted_price">;
 
@@ -1673,7 +1674,7 @@ export default function Admin() {
 
   const auth = { u: username, p: password };
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> }, { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> }, { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> }, { id: "team-members", label: "Team Members", icon: <GraduationCap className="h-4 w-4" /> }, { id: "lab-rentals", label: "Lab Rentals", icon: <Server className="h-4 w-4" /> }, { id: "access", label: "Access", icon: <CheckCircle className="h-4 w-4" /> },
+    { id: "courses", label: "Courses", icon: <BookOpen className="h-4 w-4" /> }, { id: "live-classes", label: "Live Classes", icon: <CalendarDays className="h-4 w-4" /> }, { id: "students", label: "Students", icon: <Users className="h-4 w-4" /> }, { id: "orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> }, { id: "team-members", label: "Team Members", icon: <GraduationCap className="h-4 w-4" /> }, { id: "lab-rentals", label: "Lab Rentals", icon: <Server className="h-4 w-4" /> }, { id: "access", label: "Access", icon: <CheckCircle className="h-4 w-4" /> },
   ];
-  return <div className="min-h-screen bg-muted/20 dark:bg-background pt-16"><div className="sticky top-16 z-40 bg-white dark:bg-card border-b border-border shadow-sm"><div className="max-w-6xl mx-auto px-4 sm:px-6"><div className="flex items-center justify-between h-14"><div className="flex items-center gap-1">{tabs.map((t) => <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.id ? "bg-primary text-white" : "text-foreground/60 hover:text-foreground hover:bg-muted"}`}>{t.icon}<span className="hidden sm:inline">{t.label}</span></button>)}</div><button onClick={() => { setAuthed(false); setUsername(""); setPassword(""); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Logout</span></button></div></div></div><div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">{tab === "courses" && <CoursesTab auth={auth} />}{tab === "students" && <StudentsTab auth={auth} />}{tab === "orders" && <OrdersTab auth={auth} />}{tab === "team-members" && <TrainersTab auth={auth} />}{tab === "lab-rentals" && <LabsTab auth={auth} />}{tab === "access" && <AccessManager auth={auth} />}</div></div>;
+  return <div className="min-h-screen bg-muted/20 dark:bg-background pt-16"><div className="sticky top-16 z-40 bg-white dark:bg-card border-b border-border shadow-sm"><div className="max-w-6xl mx-auto px-4 sm:px-6"><div className="flex items-center justify-between h-14"><div className="flex items-center gap-1">{tabs.map((t) => <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.id ? "bg-primary text-white" : "text-foreground/60 hover:text-foreground hover:bg-muted"}`}>{t.icon}<span className="hidden sm:inline">{t.label}</span></button>)}</div><button onClick={() => { setAuthed(false); setUsername(""); setPassword(""); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Logout</span></button></div></div></div><div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">{tab === "courses" && <CoursesTab auth={auth} />}{tab === "live-classes" && <LiveClassesManager auth={auth} />}{tab === "students" && <StudentsTab auth={auth} />}{tab === "orders" && <OrdersTab auth={auth} />}{tab === "team-members" && <TrainersTab auth={auth} />}{tab === "lab-rentals" && <LabsTab auth={auth} />}{tab === "access" && <AccessManager auth={auth} />}</div></div>;
 }

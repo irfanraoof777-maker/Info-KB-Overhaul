@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import MyLiveClasses from "@/components/MyLiveClasses";
 import { BarChart2, BookOpen, Clock, Loader2, Play, RefreshCw, Server } from "lucide-react";
 
 interface DashboardCourse {
@@ -228,6 +229,8 @@ export default function Dashboard() {
                 </div>
               )}
             </section>
+
+            <MyLiveClasses />
 
             <section>
               <div className="flex items-center justify-between mb-5"><h2 className="text-xl font-bold">My Labs</h2><Link href="/labs" className="text-sm font-semibold text-primary hover:underline">Browse Labs</Link></div>
