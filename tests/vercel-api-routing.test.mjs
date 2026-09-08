@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { createStudentLabRouter } from "../server/vercel-api/student-lab-router.js";
 import { createAdminRouter } from "../server/vercel-api/admin-router.js";
+import { updateLiveClass } from "../server/vercel-api/admin/live-classes/[id].js";
 import { checkBasicAuth } from "../server/vercel-api/_utils/auth.js";
 import { requireVerifiedStudent } from "../server/vercel-api/_utils/student-token.js";
 
@@ -220,7 +221,7 @@ test("Vercel rewrite and Admin router dispatch live class UUID GET, PUT, and DEL
   const handler = readFileSync("server/vercel-api/admin/live-classes/[id].js", "utf8");
   const config = JSON.parse(readFileSync("vercel.json", "utf8"));
   assert.match(entrypoint, /route\(\/\^live-classes\\\/\(\[\^\/\]\+\)\$\/, \["GET", "PUT", "DELETE"\], liveClassById\)/);
-  assert.match(handler, /res\.status\(404\)\.json\(\{error:"Live class not found\."\}\)/);
+  assert.match(handler, /res\.status\(404\)\.json\(\{\s*error:\s*"Live class not found\."\s*\}\)/);
   assert.ok(config.rewrites.some((rewrite) =>
     rewrite.source === "/api/admin/live-classes/:id"
       && rewrite.destination === "/api/admin/live-classes?adminPath=live-classes/:id"
@@ -242,4 +243,27 @@ test("Vercel rewrite and Admin router dispatch live class UUID GET, PUT, and DEL
     { method: "PUT", id: liveClassId },
     { method: "DELETE", id: liveClassId },
   ]);
+});
+test("live class update retries without LinkedIn only when the production schema lacks that optional column", async () => {
+  const updates = [];
+  const supabase = {
+    from: () => ({
+      update: (payload) => ({
+        eq: () => ({
+          select: () => ({
+            single: async () => {
+              updates.push(payload);
+              return updates.length === 1
+                ? { error: { code: "PGRST204", message: "Could not find the 'instructor_linkedin_url' column" } }
+                : { data: { id: "a71d1817-3d55-4e77-9251-6ea05923e5f6", title: "Updated" }, error: null };
+            },
+          }),
+        }),
+      }),
+    }),
+  };
+
+  const result = await updateLiveClass(supabase, "a71d1817-3d55-4e77-9251-6ea05923e5f6", { title: "Updated", instructor_linkedin_url: "" });
+  assert.equal(result.error, null);
+  assert.deepEqual(updates, [{ title: "Updated", instructor_linkedin_url: "" }, { title: "Updated" }]);
 });
