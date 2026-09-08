@@ -66,7 +66,7 @@ test("student dashboard hides Join Training before start and after end while ren
   const dashboard = readFileSync("artifacts/infokb/src/components/MyLiveClasses.tsx", "utf8");
   assert.match(dashboard, /Date\.parse\(session\.ends_at\) <= now \? "completed" : Date\.parse\(session\.starts_at\) <= now \? "live" : "upcoming"/);
   assert.match(dashboard, /state === "live" \? <button/);
-  assert.match(dashboard, /"Join Training"/);
+  assert.match(dashboard, /Join Training/);
   assert.match(dashboard, /item\.registration\?\.payment_status === "paid" \? "Booked"/);
 });
 
