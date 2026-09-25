@@ -36,7 +36,7 @@ export default function LiveClassDetail() {
 
   const enroll = async () => {
     if (!item || item.isDemo) return;
-    if (!user || !session) { navigate(`/login?redirect=${encodeURIComponent(`/courses/live/${slug}`)}`); return; }
+    if (!user || !session) { navigate(`/login?redirect=${encodeURIComponent(`/trainings/${slug}`)}`); return; }
     setBusy(true); setError("");
     try {
       const response = await fetch("/api/live-class-payments?paymentPath=razorpay/order", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ liveCourseId: item.id }) });
@@ -58,7 +58,7 @@ export default function LiveClassDetail() {
   return <main className="min-h-screen bg-background pt-20">
     <section className="bg-gradient-to-r from-[#003d6b] to-[#005B99] py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Link href="/courses/live" className="mb-6 inline-flex items-center gap-2 text-sm text-white/70 transition-colors hover:text-white"><ArrowLeft className="h-4 w-4" />Back to Live Training</Link>
+        <Link href="/trainings" className="mb-6 inline-flex items-center gap-2 text-sm text-white/70 transition-colors hover:text-white"><ArrowLeft className="h-4 w-4" />Back to Live Training</Link>
         <div className="mb-4"><span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">Upcoming Live Training</span></div>
         <h1 className="mb-4 max-w-3xl text-3xl font-extrabold text-white sm:text-4xl lg:text-5xl">{item.title}</h1>
         <div className="flex flex-wrap gap-5 text-sm text-white/80"><span className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-[#23B33A]" />{item.instructor}</span>{firstSession && <span className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[#23B33A]" />{dateTime(firstSession.starts_at, firstSession.timezone)}</span>}<span className="flex items-center gap-2"><Clock className="h-4 w-4 text-[#23B33A]" />{item.duration || "Live session"}</span></div>

@@ -54,7 +54,7 @@ export default function LiveClasses() {
                   {session && <p className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" />{time(session.starts_at, session.timezone)} – {time(session.ends_at, session.timezone)}</p>}
                 </div>
                 <div className="mt-5 flex items-center justify-between"><span className="text-xl font-extrabold text-foreground">{formatINR(Number(item.price_inr))}</span><span className="text-sm text-muted-foreground">{item.duration || "Live session"}</span></div>
-                <Link href={`/courses/live/${item.slug}`} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#23B33A] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#1ca033]">View Training <ArrowRight className="h-4 w-4" /></Link>
+                <Link href={`/trainings/${item.slug}`} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#23B33A] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#1ca033]">View Training <ArrowRight className="h-4 w-4" /></Link>
               </div>
             </article>;
           })}

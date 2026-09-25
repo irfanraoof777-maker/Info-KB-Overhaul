@@ -34,8 +34,8 @@ function Router() {
       <Navbar />
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/courses/live" component={LiveClasses} />
-        <Route path="/courses/live/:slug" component={LiveClassDetail} />
+        <Route path="/trainings" component={LiveClasses} />
+        <Route path="/trainings/:slug" component={LiveClassDetail} />
         <Route path="/courses" component={Courses} />
         <Route path="/courses/:slug" component={CourseDetail} />
         <Route path="/labs" component={Labs} />
