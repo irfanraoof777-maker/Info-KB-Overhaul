@@ -6,7 +6,7 @@ import { normalizeLiveClass } from "../server/vercel-api/admin/live-class-valida
 import { insertLiveClass } from "../server/vercel-api/admin/live-classes.js";
 
 test("Live Training Admin validation has no seat-limit field", () => {
-  const course = normalizeLiveClass({ title: "Live", slug: "live", price_inr: 100, max_seats: 25 });
+  const course = normalizeLiveClass({ title: "Live", slug: "live", price_usd: "100.00", max_seats: 25 });
   assert.equal(Object.hasOwn(course, "max_seats"), false);
 });
 

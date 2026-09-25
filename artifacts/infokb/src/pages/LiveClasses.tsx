@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarDays, Clock, GraduationCap, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { formatINR, liveState, mockLiveClasses, type LiveClass } from "@/data/mockLiveClasses";
+import { formatLivePrice, liveState, mockLiveClasses, type LiveClass } from "@/data/mockLiveClasses";
 
 const dateTime = (value: string, timeZone: string) => new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone }).format(new Date(value));
 const time = (value: string, timeZone: string) => new Intl.DateTimeFormat("en-IN", { timeStyle: "short", timeZone }).format(new Date(value));
@@ -53,7 +53,7 @@ export default function LiveClasses() {
                   <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary" />{session ? dateTime(session.starts_at, session.timezone) : "Schedule coming soon"}</p>
                   {session && <p className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" />{time(session.starts_at, session.timezone)} – {time(session.ends_at, session.timezone)}</p>}
                 </div>
-                <div className="mt-5 flex items-center justify-between"><span className="text-xl font-extrabold text-foreground">{formatINR(Number(item.price_inr))}</span><span className="text-sm text-muted-foreground">{item.duration || "Live session"}</span></div>
+                <div className="mt-5 flex items-center justify-between"><span className="text-xl font-extrabold text-foreground">{formatLivePrice(item)}</span><span className="text-sm text-muted-foreground">{item.duration || "Live session"}</span></div>
                 <Link href={`/trainings/${item.slug}`} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#23B33A] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#1ca033]">View Training <ArrowRight className="h-4 w-4" /></Link>
               </div>
             </article>;

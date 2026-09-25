@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { requireStudent } from "./_utils/student-auth.js";
 import { getSupabaseAdmin } from "./_utils/supabase.js";
+import { getUsdInrRate, inrAmountFromPaise, usdToInrPaise } from "./_utils/usd-inr-rate.js";
 
 const OPEN = ["creating", "created", "provider_error"];
 const authHeader = (id, secret) => `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`;
@@ -33,16 +34,19 @@ export async function createLiveClassOrder(req, res) {
   try {
     const liveCourseId = req.body?.liveCourseId;
     if (typeof liveCourseId !== "string") return res.status(400).json({ error: "A live class is required." });
-    const { data: course, error: courseError } = await auth.supabase.from("live_courses").select("id,title,price_inr,status,registration_open").eq("id", liveCourseId).maybeSingle();
+    const { data: course, error: courseError } = await auth.supabase.from("live_courses").select("id,title,price_usd,price_inr,status,registration_open").eq("id", liveCourseId).maybeSingle();
     if (courseError) throw courseError;
-    if (!course || course.status !== "published" || !course.registration_open || !(Number(course.price_inr) > 0)) return res.status(409).json({ error: "Registration is closed." });
+    if (!course || course.status !== "published" || !course.registration_open || !(Number(course.price_usd ?? course.price_inr) > 0)) return res.status(409).json({ error: "Registration is closed." });
     const existing = await auth.supabase.from("live_class_registrations").select("id").eq("user_id", auth.user.id).eq("live_course_id", liveCourseId).eq("payment_status", "paid").eq("enrollment_status", "active").maybeSingle();
     if (existing.data) return res.status(409).json({ error: "You are already registered." });
     let { data: order, error } = await auth.supabase.from("live_class_payment_orders").select("id,receipt,amount_minor,currency,razorpay_order_id,status").eq("student_id", auth.user.id).eq("live_course_id", liveCourseId).in("status", OPEN).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (error) throw error;
     if (!order) {
-      const amount = Math.round(Number(course.price_inr) * 100);
-      const inserted = await auth.supabase.from("live_class_payment_orders").insert({ id: crypto.randomUUID(), student_id: auth.user.id, live_course_id: liveCourseId, provider: "razorpay", currency: "INR", amount_minor: amount, receipt: `lc_${crypto.randomUUID().replaceAll("-", "").slice(0, 32)}` }).select("id,receipt,amount_minor,currency,razorpay_order_id,status").single();
+      const usdAmount = course.price_usd == null ? null : String(course.price_usd);
+      const fx = usdAmount ? await getUsdInrRate() : null;
+      const amount = fx ? usdToInrPaise(usdAmount, fx.rate) : Math.round(Number(course.price_inr) * 100);
+      const conversionSnapshot = fx ? { source_usd_amount: usdAmount, usd_inr_rate: fx.rate, base_inr_amount: inrAmountFromPaise(amount), fx_provider: fx.provider, fx_rate_timestamp: fx.rateTimestamp, conversion_created_at: fx.fetchedAt } : {};
+      const inserted = await auth.supabase.from("live_class_payment_orders").insert({ id: crypto.randomUUID(), student_id: auth.user.id, live_course_id: liveCourseId, provider: "razorpay", currency: "INR", amount_minor: amount, ...conversionSnapshot, receipt: `lc_${crypto.randomUUID().replaceAll("-", "").slice(0, 32)}` }).select("id,receipt,amount_minor,currency,razorpay_order_id,status").single();
       if (inserted.error) throw inserted.error; order = inserted.data;
     }
     if (!order.razorpay_order_id) {
@@ -51,7 +55,7 @@ export async function createLiveClassOrder(req, res) {
       if (updated.error) throw updated.error; order = updated.data;
     }
     return res.status(200).json({ order: { id: order.id, razorpayOrderId: order.razorpay_order_id, amount: order.amount_minor, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID, name: course.title } });
-  } catch (error) { console.error("[live-class-order] failed", error instanceof Error ? error.message : "unknown error"); return res.status(500).json({ error: "Unable to create payment order." }); }
+  } catch (error) { console.error("[live-class-order] failed", error instanceof Error ? error.message : "unknown error"); return res.status(500).json({ error: error instanceof Error ? error.message : "Unable to create payment order." }); }
 }
 export async function verifyLiveClassPayment(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });

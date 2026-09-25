@@ -7,12 +7,12 @@ export function normalizeLiveClass(body, { partial = false } = {}) {
   const result = {};
   for (const [key, max] of [["title", 200], ["slug", 180], ["short_description", 600], ["description", 20000], ["thumbnail_url", 2000], ["instructor", 200], ["instructor_linkedin_url", 2000], ["instructor_bio", 5000], ["duration", 200], ["timezone", 100]]) { const value = text(body[key], key, max, !partial && ["title", "slug"].includes(key)); if (value !== undefined) result[key] = value; }
   if (result.slug && !slug.test(result.slug)) throw new Error("slug is invalid."); if (result.instructor_linkedin_url) { try { const url = new URL(result.instructor_linkedin_url); if (!["https:", "http:"].includes(url.protocol) || !/linkedin\.com$/i.test(url.hostname) && !/\.linkedin\.com$/i.test(url.hostname)) throw new Error(); } catch { throw new Error("instructor_linkedin_url is invalid."); } }
-  if (body.price_inr != null) { const value = Number(body.price_inr); if (!Number.isFinite(value) || value <= 0 || value > 10000000) throw new Error("price_inr is invalid."); result.price_inr = value; }
+  if (body.price_usd != null) { const value = Number(body.price_usd); if (!Number.isFinite(value) || value <= 0 || value > 10000000 || !/^\d+(?:\.\d{1,2})?$/.test(String(body.price_usd).trim())) throw new Error("price_usd is invalid."); result.price_usd = value; }
   if (body.status != null) { if (!STATUSES.has(body.status)) throw new Error("status is invalid."); result.status = body.status; }
   if (body.registration_open != null) { if (typeof body.registration_open !== "boolean") throw new Error("registration_open is invalid."); result.registration_open = body.registration_open; }
   if (body.featured != null) { if (typeof body.featured !== "boolean") throw new Error("featured is invalid."); result.featured = body.featured; }
   for (const key of ["prerequisites", "what_you_learn", "curriculum"]) { const value = jsonList(body[key], key); if (value !== undefined) result[key] = value; }
-  if (!partial && (!result.title || !result.slug || result.price_inr == null)) throw new Error("title, slug, and price_inr are required.");
+  if (!partial && (!result.title || !result.slug || result.price_usd == null)) throw new Error("title, slug, and price_usd are required.");
   return result;
 }
 export function normalizeSessions(value) {

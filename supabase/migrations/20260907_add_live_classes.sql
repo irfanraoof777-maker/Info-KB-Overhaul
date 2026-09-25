@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.live_courses (
   thumbnail_url text,
   instructor text NOT NULL DEFAULT 'InfoKB',
   instructor_bio text NOT NULL DEFAULT '',
-  price_inr numeric(12,2) NOT NULL DEFAULT 0 CHECK (price_inr >= 0),
+  price_usd numeric(12,2) NOT NULL DEFAULT 0 CHECK (price_usd >= 0),
   status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','cancelled','completed')),
   registration_open boolean NOT NULL DEFAULT true,
   featured boolean NOT NULL DEFAULT false,
